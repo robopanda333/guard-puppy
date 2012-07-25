@@ -44,7 +44,7 @@ enum { LOG_ALL_OR_UNMATCHED, LOG_FIRST, LOG_ALL_KNOWN_MATCHED };
 
 class GuardPuppyFireWall
 {
-    ProtocolDB  pdb;                // The protocol database we are using.
+    ProtocolDB & pdb;                // The protocol database we are using.
     bool waspreviousfirewall;       // True if there was a previous Guarddog firewall active/available
                                     // When GuardPuppy exists, know whether to restore rc.firewall from rc.firewall~ or not
                                     // at program startup.
@@ -327,31 +327,32 @@ public:
         zone.setName( newZoneName );
     }
 
-    /*!
-    **  \brief Adds a new UDP with the given information
-    */
-    void newUserDefinedProtocol(std::string name, uchar udpType, uint udpStartPort, uint udpEndPort, bool bi)
-    {//we still have udps, we just will not access them the same way. This function will likely go away
-        pdb.UserDefinedProtocol(name, udpType, udpStartPort, udpEndPort, bi);
-        //userdefinedprotocols.push_back(p);
-    }
+// This function is already dead
+//  /*!
+//  **  \brief Adds a new UDP with the given information
+//  */
+//  void newUserDefinedProtocol(std::string name, uchar udpType, uint udpStartPort, uint udpEndPort, bool bi)
+//  { //we still have udps, we just will not access them the same way. This function will likely go away
+//      pdb.UserDefinedProtocol(name, udpType, udpStartPort, udpEndPort, bi);
+//  }
 
-    /*!
-    **  \brief Deletes a User Defined Protocol
-    **
-    */
-    void deleteUserDefinedProtocol( std::string i )
-    {
-        pdb.deleteProtocolEntry(i);
-    }
+// This function is already dead
+//  /*!
+//  **  \brief Deletes a User Defined Protocol
+//  **
+//  */
+//  void deleteUserDefinedProtocol( std::string i )
+//  {
+//      pdb.deleteProtocolEntry(i);
+//  }
 
     /*!
     **
     ** \todo Need to throw exception if things don't work.  One case would
     **      be if the networkprotocol database file cannot be loaded.
     */
-    GuardPuppyFireWall( bool superuser )
-        : pdb( "protocoldb/networkprotocoldb.xml" ), superUserMode( superuser )
+    GuardPuppyFireWall( bool superuser, ProtocolDB & _pdb)
+        : pdb( _pdb ), superUserMode( superuser )
     {
         try
         {

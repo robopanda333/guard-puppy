@@ -38,6 +38,7 @@ class GuardPuppyDialog_w : public QDialog, Ui::GuardPuppyDialog
     Q_OBJECT;
     bool guiReady;
     GuardPuppyFireWall & firewall;
+    ProtocolDB & pdb;
 
 //private functors
     class AddProtocolToTable_
@@ -176,8 +177,8 @@ class GuardPuppyDialog_w : public QDialog, Ui::GuardPuppyDialog
     };
 
 public:
-    GuardPuppyDialog_w( GuardPuppyFireWall & _firewall )
-        : guiReady( false ), firewall( _firewall )
+    GuardPuppyDialog_w( GuardPuppyFireWall & _firewall, ProtocolDB & _pdb)
+        : guiReady( false ), firewall( _firewall), pdb( _pdb )
     {
         //! \todo Read program options, i.e window geometery
         setupUi( this );

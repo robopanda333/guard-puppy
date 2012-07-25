@@ -287,7 +287,7 @@ void GuardPuppyDialog_w::createProtocolPages()
     protocolTreeWidget->setHeaderLabels( columns );
     
     AddProtocolToTable_ aptt(*this, connectedZones);
-    firewall.ApplyToDB(aptt);
+    pdb.ApplyToDB(aptt);
 
 }
 
@@ -521,7 +521,7 @@ void GuardPuppyDialog_w::on_newUserDefinedProtocolPushButton_clicked()
     uint   udpStartPort     =   0;
     uint   udpEndPort       =   0;
     bool   udpBidirectional =   false;
-    firewall.newUserDefinedProtocol(name, udpType, udpStartPort, udpEndPort, udpBidirectional);
+    pdb.UserDefinedProtocol(name, udpType, udpStartPort, udpEndPort, udpBidirectional);
     rebuildGui();
     QTreeWidgetItem * p = userDefinedProtocolTreeWidget->topLevelItem(userDefinedProtocolTreeWidget->topLevelItemCount()-1);
     userDefinedProtocolTreeWidget->scrollToItem(p);
@@ -535,7 +535,7 @@ void GuardPuppyDialog_w::on_deleteUserDefinedProtocolPushButton_clicked()
     if(item)
     {
         std::string s = item->text(0).toStdString();
-        firewall.deleteUserDefinedProtocol(s);
+        pdb.deleteProtocolEntry(s);
         rebuildGui();
     }
 }
@@ -547,7 +547,7 @@ void GuardPuppyDialog_w::on_NewPortRangePushButton_clicked()
     if( i>=0 && j>=0 )
     {
         addNewRange_ anr;
-        firewall.ApplyToNthInClass(anr, i, "User Defined");
+        pdb.ApplyToNthInClass(anr, i, "User Defined");
         rebuildGui();
         QTreeWidgetItem * p = userDefinedProtocolTreeWidget->topLevelItem(i);
         userDefinedProtocolTreeWidget->scrollToItem(p);
@@ -565,7 +565,7 @@ void GuardPuppyDialog_w::on_deletePortRangePushButton_clicked()
         if(p->childCount()>1)
         {
             deleteRange_ dr(j);
-            firewall.ApplyToNthInClass(dr, i, "User Defined");
+            pdb.ApplyToNthInClass(dr, i, "User Defined");
             rebuildGui();
             userDefinedProtocolTreeWidget->scrollToItem(p);
             userDefinedProtocolTreeWidget->expandItem(p);
@@ -590,11 +590,11 @@ void GuardPuppyDialog_w::on_userDefinedProtocolTreeWidget_currentItemChanged(QTr
 void GuardPuppyDialog_w::setUserDefinedProtocolGUI(std::string const & s, int j)
 {
         userDefinedProtocolNameLineEdit->setText(s.c_str());
-        userDefinedProtocolTypeComboBox->setCurrentIndex(firewall.getTypes(s)[j] == IPPROTO_TCP ? 0 : 1);
-        userDefinedProtocolPortStartSpinBox->setValue(firewall.getStartPorts(s)[j]);
-        userDefinedProtocolPortEndSpinBox->setValue(firewall.getEndPorts(s)[j]);
-        userDefinedProtocolBidirectionalCheckBox->setEnabled(firewall.getTypes(s)[j]==IPPROTO_UDP);
-        userDefinedProtocolBidirectionalCheckBox->setChecked(firewall.getBidirectionals(s)[j]);
+        userDefinedProtocolTypeComboBox->setCurrentIndex(pdb.lookup(s).getTypes()[j] == IPPROTO_TCP ? 0 : 1);
+        userDefinedProtocolPortStartSpinBox->setValue(pdb.lookup(s).getStartPorts()[j]);
+        userDefinedProtocolPortEndSpinBox->setValue(pdb.lookup(s).getEndPorts()[j]);
+        userDefinedProtocolBidirectionalCheckBox->setEnabled(pdb.lookup(s).getTypes()[j]==IPPROTO_UDP);
+        userDefinedProtocolBidirectionalCheckBox->setChecked(pdb.lookup(s).getBidirectionals()[j]);
 }
 
 void GuardPuppyDialog_w::createUdpTableWidget()
@@ -606,7 +606,7 @@ void GuardPuppyDialog_w::createUdpTableWidget()
     userDefinedProtocolTreeWidget->setHeaderLabels(s);
     userDefinedProtocolTreeWidget->setHeaderHidden(false);
     AddUDPToTable_ audptt(userDefinedProtocolTreeWidget);
-    firewall.ApplyToDB(audptt);
+    pdb.ApplyToDB(audptt);
 }
 
 void GuardPuppyDialog_w::setAdvancedPageEnabled(bool enabled)
@@ -616,7 +616,7 @@ void GuardPuppyDialog_w::setAdvancedPageEnabled(bool enabled)
 
     //std::vector< UserDefinedProtocol > const & udp = firewall.getUserDefinedProtocols();
     numberOfUDP_ count;
-    firewall.ApplyToDB(count);
+    pdb.ApplyToDB(count);
     bool gotudps = count.value();///*firewall.numberOfUserDefinedProtocols() >*/ 1 ;
     userDefinedProtocolTreeWidget->setEnabled(enabled);
     userDefinedProtocolNameLineEdit->setEnabled(enabled && gotudps);
@@ -700,7 +700,7 @@ void GuardPuppyDialog_w::on_userDefinedProtocolBidirectionalCheckBox_stateChange
     if( i>=0 && j>=0 )
     {
         changeProtocolBi_ cpb((bool)state, j);
-        firewall.ApplyToNthInClass(cpb, i, "User Defined");
+        pdb.ApplyToNthInClass(cpb, i, "User Defined");
     }
 }
 
@@ -738,7 +738,7 @@ void GuardPuppyDialog_w::on_userDefinedProtocolTypeComboBox_currentIndexChanged(
     {
         std::cerr << i << " " << j <<std::endl;
         changeProtocolType_ cpn(value == 0?IPPROTO_TCP:IPPROTO_UDP, j);
-        firewall.ApplyToNthInClass(cpn, i, "User Defined");
+        pdb.ApplyToNthInClass(cpn, i, "User Defined");
         userDefinedProtocolTreeWidget->topLevelItem(i)->child(j)->setText(1, value == 0?"TCP":"UDP");
         userDefinedProtocolBidirectionalCheckBox->setEnabled(value);
     }
@@ -751,7 +751,7 @@ void GuardPuppyDialog_w::on_userDefinedProtocolNameLineEdit_textEdited(QString c
     {
         std::string s = text.toStdString();
         changeProtocolName_ cpn(s);
-        firewall.ApplyToNthInClass(cpn, i, "User Defined");
+        pdb.ApplyToNthInClass(cpn, i, "User Defined");
         QTreeWidgetItem* t = userDefinedProtocolTreeWidget->topLevelItem(i);
         t->setText(0, s.c_str());//change the root of the protocol
         for(int c(0); c < t->childCount(); c++)
@@ -768,7 +768,7 @@ void GuardPuppyDialog_w::on_userDefinedProtocolPortStartSpinBox_editingFinished(
     if( i>=0 && j>=0 )
     {
         changeProtocolPort_ cpn(value, j, userDefinedProtocolTreeWidget->topLevelItem(i));
-        firewall.ApplyToNthInClass(cpn, i, "User Defined");
+        pdb.ApplyToNthInClass(cpn, i, "User Defined");
         if(cpn.pChange())
             userDefinedProtocolPortEndSpinBox->setValue(value);
     }
@@ -781,7 +781,7 @@ void GuardPuppyDialog_w::on_userDefinedProtocolPortEndSpinBox_editingFinished()
     if( i>=0 && j>=0 )
     {
         changeProtocolPort_ cpn(value, j, userDefinedProtocolTreeWidget->topLevelItem(i), false);
-        firewall.ApplyToNthInClass(cpn, i, "User Defined");
+        pdb.ApplyToNthInClass(cpn, i, "User Defined");
         if(cpn.pChange())
             userDefinedProtocolPortStartSpinBox->setValue(value);
     }
