@@ -69,9 +69,7 @@ void GuardPuppyDialog_w::on_zoneListWidget_currentItemChanged( QListWidgetItem *
 void GuardPuppyDialog_w::on_zoneNameLineEdit_textChanged( QString const & text )
 {
     std::string s = text.toStdString();
-    BOOST_FOREACH(char & c, s)
-        if(c==' ')
-            c = '_';
+    std::replace(s.begin(), s.end(), ' ', '_');
     firewall.zoneRename( currentZoneName(), s );
 
     if ( zoneListWidget->currentItem() )
