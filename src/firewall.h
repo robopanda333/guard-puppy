@@ -84,9 +84,6 @@ class GuardPuppyFireWall
     std::string dhcpdinterfacename;
     bool allowtcptimestamps;
 
-//  time to get serious
-//    std::vector< UserDefinedProtocol > userdefinedprotocols;
-
 public:
     std::string description;
 
@@ -107,7 +104,6 @@ public:
         return text;
     }
 
-    //! \todo My guess is none of the checkboxes on the GUI are connected to these calls yet
     void setLogDrop(bool on) { logdrop = on; }
     bool isLogDrop() { return logdrop; }
     void setLogReject(bool on) { logreject = on; }
@@ -148,6 +144,11 @@ public:
     */
     void addNewMachine( std::string const & zoneName, std::string const & ipAddress )
     {
+//zones are used alot. there are alot of common operations used on them, like 
+//getZone, AddMember, setState. these things have little to do with the firewall
+//state other than they are the firewalls zones. It seems contradictory to have
+//the Protocols be a seprate entity but have the zones be just a part of the firewall.
+//tldr: i think there should be a ZoneDB, with common functions.(it would probably still be a member of the firewall class)
         Zone & zone = getZone( zoneName );
 
         zone.addMemberMachine( IPRange( ipAddress ) );
@@ -369,12 +370,10 @@ public:
     {
         disabled = on;
     }
-
     bool isDisabled()
     {
         return disabled;
     }
-
     void setLocalDynamicPortRangeStart(uint start)
     {
         localPortRangeStart = start;
@@ -383,7 +382,6 @@ public:
     {
         localPortRangeEnd = end;
     }
-
     void getLocalDynamicPortRange(uint &start,uint &end)
     {
         start = localPortRangeStart;
@@ -399,22 +397,18 @@ public:
     {
         return dhcpcinterfacename;
     }
-
     void setDHCPdInterfaceName(const std::string &ifacename)
     {
         dhcpdinterfacename = ifacename;
     }
-
     std::string getDHCPdInterfaceName()
     {
         return dhcpdinterfacename;
     }
-
     bool isSuperUserMode() const
     {
         return superUserMode;
     }
-
     /*!
     **  \brief if the current firewall state is modified, save the
     **         new rc.firewall file and apply it.
@@ -429,9 +423,6 @@ public:
         save( filename );
         apply();
     }
-
-    ///////////////////////////////////////////////////////////////////////////
-
     /*!
     **  \brief  Write the firewall to a temporary file and execute it.
     */
@@ -446,18 +437,10 @@ public:
         runFirewall( tmp );
         boost::filesystem::remove( tmp );
     }
-
     void copyFile( std::string const & src,  std::string const & dest )
     {
-#if BOOST_FILESYSTEM_VERSION < 3
-        //! \todo Not sure what this behavior is, i.e. over write or not.  Probably remove in final version and
-        //  require v3
-        boost::filesystem::copy_file( src, dest );
-#else
         boost::filesystem::copy_file( src, dest, boost::filesystem::copy_option::overwrite_if_exists );
-#endif
     }
-
     /*!
     **  \brief  Open the /etc/rc.firewall script if executing as superuser
     */
@@ -497,13 +480,11 @@ public:
             factoryDefaults();
         }
     }
-
     std::vector< ProtocolNetUse > getNetworkUse( std::string const & protocolName ) const
     {
         std::vector< ProtocolNetUse > protos = pdb.getNetworkUses( protocolName );
         return protos;
     }
-
     /*!
     **  \brief Save firewall to filename
     */
@@ -659,7 +640,6 @@ public:
             "true\n";
     }
 private:
-    
     //helper functor for save
     class OutputUDP
     {
@@ -1285,10 +1265,6 @@ private:
 
     }
 
-    ///////////////////////////////////////////////////////////////////////////
-    //
-    // permit==true && log==true is not supported.
-    //
     void expandIPTablesFilterRule( std::ostream & stream, std::string const & fromzone, PortRangeInfo * fromzonePRI, std::string const & tozone, PortRangeInfo *tozonePRI,
             ProtocolNetUse const & netuse, bool permit = true, bool log = false)
     {
@@ -2019,8 +1995,6 @@ private:
         int rv = system( command.c_str() );
         if ( rv == -1 ) throw std::string( "System command failed" );
     }
-
-
     /*!
     **  \brief This simples removes any firewall that maybe current in force on the system.
     */
@@ -2048,9 +2022,8 @@ private:
         int rv = system( command.c_str() );
         if ( rv == -1 ) throw std::string( "system command returned error" );
     }
-
+/* These functions are already dead
 public:
-//TODO make these safe to call with bad strings.
     std::string getName(std::string s) const
     {
         return pdb.lookup(s).getName();
@@ -2084,17 +2057,16 @@ public:
     {
         pdb.lookup(s).setBidirectional(on, j);
     }
-
     template <class T>
     void ApplyToDB(T & func)
     {
         pdb.ApplyToDB(func);
     }
-
     template<class T>
     void ApplyToNthInClass(T & func, int i, std::string c)
     {
         pdb.ApplyToNthInClass(func, i, c);
     }
+*/
 };
 

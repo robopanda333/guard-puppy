@@ -91,9 +91,6 @@ public:
         return comment;
     }
 
-    //One of these Name functions should probably sanitize for whitespace,
-    //or there needs to be another getter that does.
-    //tldr white space can't be in a name somehow.
     void setName( std::string const & n )
     {
         name = n;
