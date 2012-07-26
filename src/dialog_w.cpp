@@ -297,15 +297,15 @@ void GuardPuppyDialog_w::AddProtocolToTable_::operator()(ProtocolEntry const & p
     QTreeWidgetItem * parent = 0;
     for(; index < g.protocolTreeWidget->topLevelItemCount() && !parent; index++)
     {
-        if(pe.Classification == g.protocolTreeWidget->topLevelItem(index)->text(0).toStdString())
+        if(pe.getClassification() == g.protocolTreeWidget->topLevelItem(index)->text(0).toStdString())
             parent = g.protocolTreeWidget->topLevelItem(index);
     }
     if(!parent)
     {//add new top level parent of the same class.
-        parent = new QTreeWidgetItem( QStringList( pe.Classification.c_str() ) );
+        parent = new QTreeWidgetItem( QStringList( pe.getClassification().c_str() ) );
         g.protocolTreeWidget->addTopLevelItem( parent );
     }
-    QTreeWidgetItem * item = new QTreeWidgetItem(parent, QStringList( pe.longname.c_str() ) );
+    QTreeWidgetItem * item = new QTreeWidgetItem(parent, QStringList( pe.getLongname().c_str() ) );
 
     g.protocolTreeWidget->header()->setResizeMode( QHeaderView::ResizeToContents );
     
@@ -314,9 +314,9 @@ void GuardPuppyDialog_w::AddProtocolToTable_::operator()(ProtocolEntry const & p
 
     for ( size_t i = 0; i < connectedZones.size(); i++ )
     {
-        ProtocolCheckBox * itemCheckBox = new ProtocolCheckBox(connectedZones[i], pe.name, g.protocolTreeWidget);
+        ProtocolCheckBox * itemCheckBox = new ProtocolCheckBox(connectedZones[i], pe.getName(), g.protocolTreeWidget);
         itemCheckBox->setTristate();
-        Zone::ProtocolState ps = g.firewall.getProtocolState( g.currentProtocolZoneName(), connectedZones[i], pe.name );
+        Zone::ProtocolState ps = g.firewall.getProtocolState( g.currentProtocolZoneName(), connectedZones[i], pe.getName() );
         if ( ps == Zone::DENY )
             itemCheckBox->setCheckState( Qt::Unchecked );
         else if ( ps == Zone::REJECT )

@@ -85,7 +85,6 @@ struct PortRangeInfo
     }
 };
 
-
     /*!
     **  \brief All the kinds of port ranges there are
     */
@@ -108,6 +107,13 @@ enum NetworkEntity
     ENTITY_CLIENT
 };
 
+enum Score
+{
+    SCORE_UNKNOWN=0,
+    SCORE_LOW,
+    SCORE_MEDIUM,
+    SCORE_HIGH
+};
 
 //Holds a single port range
 class ProtocolNetUseDetail
@@ -206,38 +212,15 @@ public:
     std::string   description;
     uchar         type;    // IPPROTO_TCP, IPPROTO_UDP or IPPROTO_ICMP
     bool          bidirectional;    // For UDP.
+
     NetworkEntity source;
     NetworkEntity dest;
-
-    uchar         getType() const { return type; }   // IPPROTO_TCP, IPPROTO_UDP or IPPROTO_ICMP
 
     ProtocolNetUseDetail sourcedetail;
     ProtocolNetUseDetail destdetail;
 
-    std::string lastPragmaName;
     std::map< std::string, std::string > pragma;
-
-    void addPragmaValue( std::string const & value )
-    {
-        std::cout << "Pragma " << lastPragmaName << " = " << value << std::endl;
-        pragma[ lastPragmaName ] = value;
-    }
-
-
-    void setType( uchar t ) { type = t; }
-    void setSource( NetworkEntity s ) { source = s; }
-    void setDest( NetworkEntity d ) { dest = d; }
-    void setBidirectional( bool b ) { bidirectional = b; }
-
-    void addSource( ProtocolNetUseDetail const & source )
-    {
-        sourcedetail = source;
-    }
-
-    void addDest( ProtocolNetUseDetail const & dest )
-    {
-        destdetail = dest;
-    }
+    std::string lastPragmaName;
 
     ProtocolNetUse(uchar t = IPPROTO_TCP, bool bi = true, NetworkEntity sr = ENTITY_CLIENT, NetworkEntity des = ENTITY_SERVER)
     : sourcedetail(PORTRANGE_ANY), destdetail(PORTRANGE_ANY)
@@ -248,14 +231,38 @@ public:
         bidirectional = bi;
     }
 
-    bool isBidirectional() const
+    ~ProtocolNetUse()
+    { }
+
+    void addPragmaValue( std::string const & value )
     {
-        return (type==IPPROTO_TCP) || bidirectional;
+        std::cout << "Pragma " << lastPragmaName << " = " << value << std::endl;
+        pragma[ lastPragmaName ] = value;
     }
 
 
-    ~ProtocolNetUse()
-    { }
+    void  setType( uchar t ) { type = t; }
+    uchar getType() const { return type; }   // IPPROTO_TCP, IPPROTO_UDP or IPPROTO_ICMP
+    //the next 2 functions are really poorly named.
+    void  setSource( NetworkEntity s ) { source = s; }
+    void  setDest( NetworkEntity d ) { dest = d; }
+    ProtocolNetUseDetail const &  getSource() const { return sourcedetail; }
+    ProtocolNetUseDetail &  getSource() { return sourcedetail; }
+    ProtocolNetUseDetail const &  getDest() const { return destdetail; }
+    ProtocolNetUseDetail &  getDest() { return destdetail; }
+    void  setBidirectional( bool b ) { bidirectional = b; }
+    bool isBidirectional() const { return (type==IPPROTO_TCP) || bidirectional; }
+
+    void addSource( ProtocolNetUseDetail const & source )
+    {
+        sourcedetail = source;
+    }
+    void addDest( ProtocolNetUseDetail const & dest )
+    {
+        destdetail = dest;
+    }
+
+
 
     void print() const
     {
@@ -285,16 +292,15 @@ public:
         destdetail.print();
         fprintf(stderr,"]");
     }
-    bool sourcePortEquals(uint port)
+    bool sourcePortEquals(uint port) const
     {
         return sourcedetail.inRange( port );
     }
-    bool destPortEquals(uint port)
+    bool destPortEquals(uint port) const
     {
         return destdetail.inRange( port );
     }
-
-    bool icmpTypeCodeEquals(uint type, int code)
+    bool icmpTypeCodeEquals(uint type, int code) const
     {
         if ( type==sourcedetail.getType() )
         {
@@ -308,30 +314,25 @@ public:
     }
 };
 
-enum Score
-{
-    SCORE_UNKNOWN=0,
-    SCORE_LOW,
-    SCORE_MEDIUM,
-    SCORE_HIGH
-};
-
 class ProtocolEntry
 {
-public:
-    std::string name;
-    std::string longnamelanguage;
-    std::string longname;
-
-    std::string descriptionlanguage;
-    std::string description;
-
     Score threat;
     Score falsepos;
-    std::string Classification;
-    std::vector< ProtocolNetUse > networkuse;
+
+    std::string name;
+    std::string classification;
+    std::string longname;
+    std::string description;
+    std::string longnamelanguage;
+    std::string descriptionlanguage;
+
+//i don't really know what these are about
     std::string lastPragmaName;
     std::map< std::string, std::string > pragma;
+public:
+    friend class ProtocolDB;
+
+    std::vector< ProtocolNetUse > networkuse;
 
     void addPragmaValue( std::string const & value )
     {
@@ -351,10 +352,9 @@ public:
     ProtocolEntry( std::string const & _name = "" )
      : name( _name )
     {
-        //    networkuse.setAutoDelete(true);
         threat         = SCORE_UNKNOWN;
         falsepos       = SCORE_UNKNOWN;
-        Classification = "Unknown";
+        classification = "Unknown";
     }
 
     ~ProtocolEntry()
@@ -383,8 +383,8 @@ public:
         }
         fprintf(stderr," Classification: ");
 
-        if(Classification != "")
-            std::cerr << Classification;
+        if(classification != "")
+            std::cerr << classification;
 
         BOOST_FOREACH( ProtocolNetUse const & x, networkuse )
         {
@@ -393,26 +393,31 @@ public:
         fprintf(stderr,"]");
     }
 
-    std::string getName() const        { return name; }
-    void setName( std::string const & n ) { name = n; }
+    std::string getName() const           { return name; }
+    std::string getLongname() const       { return longname; }
+    void setName( std::string const & n ) { name = n; longname = n; }
+    std::string getDescription() const    { return description; }
+
+    std::string getClassification() const { return classification; }
+    void setClassification(std::string s) { classification = s; }
 
     std::vector<uchar> getTypes() const
     {
         std::vector<uchar> temp;
         BOOST_FOREACH( ProtocolNetUse const & nu, networkuse)
-            temp.push_back( nu.type );
+            temp.push_back( nu.getType() );
         return temp;
     }
     void setType(uchar t, int j)
     {
-        networkuse[j].type = t;
+        networkuse[j].setType(t);
     }
 
     std::vector<std::string> getRangeStrings() const
     {
         std::vector<std::string> temp;
         BOOST_FOREACH( ProtocolNetUse const & nu, networkuse)
-            temp.push_back( nu.destdetail.getRangeString() );
+            temp.push_back( nu.getDest().getRangeString() );
         return temp;
     }
 
@@ -420,24 +425,24 @@ public:
     {
         std::vector<uint> temp;
         BOOST_FOREACH( ProtocolNetUse const & nu, networkuse)
-            temp.push_back( nu.destdetail.getStart() );
+            temp.push_back( nu.getDest().getStart() );
         return temp;
     }
     void setStartPort(uint i, int j)
     {
-        networkuse[j].destdetail.setStartPort(i);
+        networkuse[j].getDest().setStartPort(i);
     }
 
     std::vector<uint> getEndPorts() const
     {
         std::vector<uint> temp;
         BOOST_FOREACH( ProtocolNetUse const & nu, networkuse)
-            temp.push_back( nu.destdetail.getEnd() );
+            temp.push_back( nu.getDest().getEnd() );
         return temp;
     }
     void setEndPort(uint i, int j)
     {
-        networkuse[j].destdetail.setEndPort(i);
+        networkuse[j].getDest().setEndPort(i);
     }
 
     std::vector<bool> getBidirectionals() const
@@ -449,7 +454,7 @@ public:
     }
     void setBidirectional(bool on, int j)
     {
-        networkuse[j].bidirectional = on;
+        networkuse[j].setBidirectional( on );
     }
 
 };
@@ -459,7 +464,6 @@ class ProtocolDB : public QXmlDefaultHandler
     std::vector< ProtocolEntry > protocolDataBase;
 
 //i really hate these...
-    ProtocolEntry currententry;
     ProtocolNetUse currentnetuse;
     ProtocolNetUseDetail currentnetusedetail;
 //TODO replace all instances of currententry with protocolDataBase[protocolDataBase.size()]
@@ -638,7 +642,6 @@ public:
                 case PROTOCOL_STATE_PROTOCOLDB:
                     if ( localName == "protocol" )
                     {
-                        currententry = ProtocolEntry();
                         // Fetch the name attribute.
                         i = atts.index(protocolnamespace.c_str(),nameattr.c_str());
                         if(i==-1)
@@ -647,7 +650,7 @@ public:
                             errorstate = PROTOCOL_ERROR_ENTRY_NAME_ATTR_NOT_FOUND;
                             return false;
                         }
-                        currententry.setName( atts.value(i).toStdString() );
+                        addProtocolEntry( ProtocolEntry(atts.value(i).toStdString()) );
                         parsestate = PROTOCOL_STATE_ENTRY;
                         return true;
                     }
@@ -662,10 +665,10 @@ public:
                             tmp = atts.value(i).toStdString();
                         else
                             tmp = "en";
-                        if(currententry.longnamelanguage.empty())
+                        if( protocolDataBase.back().longnamelanguage.empty())
                         {
                             loadlongname = true;
-                            currententry.longnamelanguage = tmp;
+                            protocolDataBase.back().longnamelanguage = tmp;
                         }
 
                         parsestate = PROTOCOL_STATE_LONGNAME;
@@ -680,10 +683,10 @@ public:
                         else
                             tmp = "en";
 
-                        if(currententry.descriptionlanguage.empty())
+                        if(protocolDataBase.back().descriptionlanguage.empty())
                         {
                             loaddescription = true;
-                            currententry.descriptionlanguage = tmp;
+                            protocolDataBase.back().descriptionlanguage = tmp;
                         }
                         parsestate = PROTOCOL_STATE_DESCRIPTION;
                         return true;
@@ -694,7 +697,7 @@ public:
                         if ( i != -1 )
                         {
                             tmp = atts.value(i).toStdString();
-                            currententry.Classification = tmp;
+                            protocolDataBase.back().classification = tmp;
                         }
                         parsestate = PROTOCOL_STATE_CLASSIFICATION;
                         return true;
@@ -712,13 +715,13 @@ public:
                         {
                             tmp = atts.value(i).toStdString();
                             if(tmp=="unknown")
-                                currententry.threat = SCORE_UNKNOWN;
+                                protocolDataBase.back().threat = SCORE_UNKNOWN;
                             else if(tmp=="low")
-                                currententry.threat = SCORE_LOW;
+                                protocolDataBase.back().threat = SCORE_LOW;
                             else if(tmp=="medium")
-                                currententry.threat = SCORE_MEDIUM;
+                                protocolDataBase.back().threat = SCORE_MEDIUM;
                             else if(tmp=="high")
-                                currententry.threat = SCORE_HIGH;
+                                protocolDataBase.back().threat = SCORE_HIGH;
                             else
                             {
                                 errorstate = PROTOCOL_ERROR_SECURITY_LEVEL_UNKNOWN;
@@ -732,13 +735,13 @@ public:
                         {
                             tmp = atts.value(i).toStdString();
                             if(tmp=="unknown")
-                                currententry.falsepos = SCORE_UNKNOWN;
+                                protocolDataBase.back().falsepos = SCORE_UNKNOWN;
                             else if(tmp=="low")
-                                currententry.falsepos = SCORE_LOW;
+                                protocolDataBase.back().falsepos = SCORE_LOW;
                             else if(tmp=="medium")
-                                currententry.falsepos = SCORE_MEDIUM;
+                                protocolDataBase.back().falsepos = SCORE_MEDIUM;
                             else if(tmp=="high")
-                                currententry.falsepos = SCORE_HIGH;
+                                protocolDataBase.back().falsepos = SCORE_HIGH;
                             else
                             {
                                 errorstate = PROTOCOL_ERROR_SECURITY_FALSEPOS_UNKNOWN;
@@ -756,8 +759,8 @@ public:
                         if(i!=-1)
                         {
                             tmp = atts.value(i).toStdString();
-                            currententry.lastPragmaName = tmp;
-                            currententry.pragma[tmp] = "";
+                            protocolDataBase.back().lastPragmaName = tmp;
+                            protocolDataBase.back().pragma[tmp] = "";
                         }
                         parsestate = PROTOCOL_STATE_ENTRY_PRAGMA;
                         return true;
@@ -1219,7 +1222,6 @@ public:
 
                 case PROTOCOL_STATE_ENTRY:
                     // We are just exiting an entry.
-                    addProtocolEntry( currententry );
                     parsestate = PROTOCOL_STATE_PROTOCOLDB;
                     return true;
 
@@ -1236,7 +1238,7 @@ public:
                 case PROTOCOL_STATE_UDP:
                 case PROTOCOL_STATE_ICMP:
                 case PROTOCOL_STATE_IP:
-                    currententry.addNetwork( currentnetuse ); //networkuse.push_back(currentnetuse);
+                    protocolDataBase.back().addNetwork( currentnetuse ); //networkuse.push_back(currentnetuse);
                     parsestate = PROTOCOL_STATE_NETWORK;
                     return true;
 
@@ -1309,16 +1311,16 @@ public:
         {
             case PROTOCOL_STATE_LONGNAME:
                 if(loadlongname)
-                    currententry.longname = ch.toStdString();
+                    protocolDataBase.back().longname = ch.toStdString();
                 return true;
 
             case PROTOCOL_STATE_DESCRIPTION:
                 if ( loaddescription )
-                    currententry.description = ch.toStdString();
+                    protocolDataBase.back().description = ch.toStdString();
                 return true;
 
             case PROTOCOL_STATE_ENTRY_PRAGMA:
-                currententry.addPragmaValue(ch.toStdString());
+                protocolDataBase.back().addPragmaValue(ch.toStdString());
                 return true;
 
             case PROTOCOL_STATE_TCP_DESCRIPTION:
@@ -1491,7 +1493,7 @@ public:
         int n = 0;
         BOOST_FOREACH(ProtocolEntry & ent, protocolDataBase)
         {
-            if(ent.Classification == c)
+            if(ent.classification == c)
             {
                 if(n == i)
                 {
@@ -1520,7 +1522,7 @@ public:
     {
         ProtocolEntry entry( name );
         entry.longname = name;
-        entry.Classification = "User Defined";
+        entry.classification = "User Defined";
         ProtocolNetUse netuse;
         netuse.addDest(ProtocolNetUseDetail(PORTRANGE_RANGE, startp, endp));
         netuse.setType(udptype);

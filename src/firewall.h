@@ -96,7 +96,7 @@ public:
         std::string text = "Not found";
         try
         {
-            text = pdb.lookup( protocol ).description;
+            text = pdb.lookup( protocol ).getDescription();
         }
         catch(...)
         {
@@ -565,7 +565,7 @@ private:
         {}
         void operator()(ProtocolEntry const & i)
         {
-            if(i.Classification == "User Defined")
+            if(i.getClassification() == "User Defined")
             {
                 o<<"# [UserDefinedProtocol]\n";
                 o<<"# ID="<<("0"/*currentudp.getID()*/)<<"\n";
@@ -1670,8 +1670,8 @@ public:
                 ProtocolEntry t(tmpstring);
                 pdb.addProtocolEntry(t);
                 ent = &pdb.lookup(tmpstring);
-                ent->Classification = "User Defined";
-                ent->longname = tmpstring; //for udp the name and long name are the same
+                ent->setClassification("User Defined");
+                ent->setName(tmpstring); //for udp the name and long name are the same
             }
 
             std::getline( stream, s );

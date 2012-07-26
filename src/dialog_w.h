@@ -58,7 +58,7 @@ class GuardPuppyDialog_w : public QDialog, Ui::GuardPuppyDialog
         {}
         void operator()(ProtocolEntry const & pe)
         {
-            if(pe.Classification == "User Defined")
+            if(pe.getClassification() == "User Defined")
             {
                 //create an empty item
                 QTreeWidgetItem* parent = new QTreeWidgetItem(t, 0);
@@ -87,7 +87,7 @@ class GuardPuppyDialog_w : public QDialog, Ui::GuardPuppyDialog
         void reset() {count = 0;}
         void operator()(ProtocolEntry const & pe)
         {
-            if(pe.Classification == "User Defined")
+            if(pe.getClassification() == "User Defined")
             {
                 count++;
             }
@@ -113,8 +113,7 @@ class GuardPuppyDialog_w : public QDialog, Ui::GuardPuppyDialog
         {}
         void operator()(ProtocolEntry & pe)
         {
-            pe.name = s;
-            pe.longname = s;
+            pe.setName(s);
         }
     };
     class changeProtocolBi_

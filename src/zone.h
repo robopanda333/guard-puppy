@@ -129,7 +129,7 @@ public:
 
     void setProtocolState( Zone const & toZone, ProtocolEntry const & proto, Zone::ProtocolState state)
     {
-        protocols[ toZone.name ][ proto.name ] = state;
+        protocols[ toZone.name ][ proto.getName() ] = state;
     }
 
     /*!
