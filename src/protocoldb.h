@@ -1,5 +1,5 @@
 /***************************************************************************
-  protocoldb.h  -
+  protocoldb.h
   -------------------
 begin                : Thu Nov 23 09:00:22 CET 2000
 copyright            : (C) 2000-2001 by Simon Edwards
@@ -46,9 +46,9 @@ email                : simon@simonzone.com
    Client to the Server to control the session, and one back from the server to
    the client to transmit files.
 
-   __________   Control      ___________
+    __________   Control      ___________
    /          \  ----TCP---> /           \
-   | FTP Client |            |  FTP Server |
+  | FTP Client |            |  FTP Server |
    \__________/  <----TCP--- \___________/
    Data
 
@@ -101,7 +101,6 @@ enum RangeType
 
     /*!
     **  \brief the kinds of entities we support.
-    **  \todo add in Router or some other such things?
     */
 enum NetworkEntity
 {
@@ -202,9 +201,6 @@ public:
 
 class ProtocolNetUse
 {
-    //        bool sourcePortEquals(uint port);
-    //        bool destPortEquals(uint port);
-    //       bool icmpTypeCodeEquals(uint type, int code);
 public:
     std::string   descriptionlanguage;
     std::string   description;
@@ -215,13 +211,9 @@ public:
 
     uchar         getType() const { return type; }   // IPPROTO_TCP, IPPROTO_UDP or IPPROTO_ICMP
 
-    friend class ProtocolEntry;//ya it sucks. get over it
-    friend class GuardPuppyFireWall;
-
     ProtocolNetUseDetail sourcedetail;
     ProtocolNetUseDetail destdetail;
 
-public:
     std::string lastPragmaName;
     std::map< std::string, std::string > pragma;
 
@@ -337,19 +329,10 @@ public:
     Score threat;
     Score falsepos;
     std::string Classification;
-private:
-    friend class ProtocolDB;
-    friend class GuardPuppyFireWall;
     std::vector< ProtocolNetUse > networkuse;
-public:
     std::string lastPragmaName;
     std::map< std::string, std::string > pragma;
 
-    bool operator==(ProtocolEntry const & that) const
-    {   //protocols are now considered the same if they have the same name.
-        //because if they don't we can run into very bad times
-        return  name == that.name;
-    }
     void addPragmaValue( std::string const & value )
     {
         std::cout << "Pragma " << lastPragmaName << " = " << value << std::endl;
@@ -471,21 +454,17 @@ public:
 
 };
 
-
-
-
-
 class ProtocolDB : public QXmlDefaultHandler
 {
-public:
-
-private:
     std::vector< ProtocolEntry > protocolDataBase;
 
 //i really hate these...
     ProtocolEntry currententry;
     ProtocolNetUse currentnetuse;
     ProtocolNetUseDetail currentnetusedetail;
+//TODO replace all instances of currententry with protocolDataBase[protocolDataBase.size()]
+//                              currentnetuse with protocolDataBase[protocolDataBase.size()].getNetuse()[netusesize]
+//                              and similar for currentnetusedetail
 
     int unknowndepth;   // This is so that we can skip unknown tags.
     std::string protocolnamespace, linesattr,  nameattr,     portnumattr, portstartattr,
@@ -590,7 +569,6 @@ public:
     ProtocolDB()
     {
     }
-
 
     bool loadDB(const std::string &filename, std::vector< std::string > const & languages)
     {
@@ -1484,6 +1462,7 @@ public:
         }
         return *pit;
     }
+
     ProtocolEntry const & lookup( std::string const & name ) const
     {
         std::vector< ProtocolEntry >::const_iterator pit = std::find_if( protocolDataBase.begin(), protocolDataBase.end(), boost::phoenix::bind( &ProtocolEntry::name, boost::phoenix::arg_names::arg1) == name );
