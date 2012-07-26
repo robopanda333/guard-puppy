@@ -478,102 +478,20 @@ public:
 class ProtocolDB : public QXmlDefaultHandler
 {
 public:
-    template <typename func>
-    void ApplyToDB(func & f)
-    {
-        BOOST_FOREACH(ProtocolEntry & i, protocolDataBase)
-            f(i);
-    }
-
-    template<class T>
-    void ApplyToNthInClass(T & func, int i, std::string c)
-    {
-        int n = 0;
-        BOOST_FOREACH(ProtocolEntry & ent, protocolDataBase)
-        {
-            if(ent.Classification == c)
-            {
-                if(n == i)
-                {
-                    func(ent);
-                    break;
-                }
-                n++;
-            }
-        }
-        if (n != i)
-            std::cerr << "Index too great" << std::endl;
-    }
-
-    std::vector< ProtocolEntry > const & getProtocolDataBase() const
-    {
-        return protocolDataBase;
-    }
-
-    void addProtocolEntry( ProtocolEntry const & pe )
-    {
-        protocolDataBase.push_back( pe );
-    }
-
-    void UserDefinedProtocol(std::string name, uchar udptype, uint startp, uint endp, bool bi)
-    {
-        ProtocolEntry entry( name );
-        entry.longname = name;
-        entry.Classification = "User Defined";
-        ProtocolNetUse netuse;
-        netuse.addDest(ProtocolNetUseDetail(PORTRANGE_RANGE, startp, endp));
-        netuse.setType(udptype);
-        netuse.setBidirectional(bi);
-        entry.addNetwork(netuse);
-        addProtocolEntry(entry);
-    }
-
-    void deleteProtocolEntry( std::string const & name )
-    {
-        std::vector< ProtocolEntry >::iterator pit = std::find_if( protocolDataBase.begin(), protocolDataBase.end(), boost::phoenix::bind( &ProtocolEntry::name, boost::phoenix::arg_names::arg1) == name );
-        if ( pit == protocolDataBase.end() )
-        {
-            pit = std::find_if( protocolDataBase.begin(), protocolDataBase.end(), boost::phoenix::bind( &ProtocolEntry::longname, boost::phoenix::arg_names::arg1) == name );
-            if ( pit == protocolDataBase.end() )
-            {
-                std::cout << "Couldn't find protocol: " << name << std::endl;
-                throw std::string("Protocol not found");
-            }
-        }
-        protocolDataBase.erase(pit);
-    }
 
 private:
     std::vector< ProtocolEntry > protocolDataBase;
 
-//    QXmlLocator *xmllocator;
+//i really hate these...
     ProtocolEntry currententry;
-
     ProtocolNetUse currentnetuse;
     ProtocolNetUseDetail currentnetusedetail;
 
-
     int unknowndepth;   // This is so that we can skip unknown tags.
-//    int numberoflines;
-#ifndef QT_LITE
-    //    QProgressDialog *progressdialog;
-#endif
-    std::string protocolnamespace;
-    std::string linesattr;
-    std::string nameattr;
-    std::string portnumattr;
-    std::string portstartattr;
-    std::string portendattr;
-    std::string threatattr;
-    std::string falseposattr;
-    std::string sourceattr;
-    std::string destattr;
-    std::string directionattr;
-    std::string valueattr;
-    std::string codeattr;
-    std::string classattr;
-    std::string langattr;
-    std::string protocolattr;
+    std::string protocolnamespace, linesattr,  nameattr,     portnumattr, portstartattr,
+                portendattr,       threatattr, falseposattr, sourceattr,  destattr,
+                directionattr,     valueattr,  codeattr,     classattr,   langattr,
+                protocolattr;
 
     std::vector< std::string > parseerror;
     std::vector<std::string> languagelist;
@@ -659,22 +577,10 @@ private:
     ErrorState errorstate;
 public:
     ProtocolDB( std::string const & filename )
-     :  protocolnamespace(""),
-        linesattr("lines"),
-        nameattr("name"),
-        portnumattr("portnum"),
-        portstartattr("start"),
-        portendattr("end"),
-        threatattr("threat"),
-        falseposattr("falsepos"),
-        sourceattr("source"),
-        destattr("dest"),
-        directionattr("direction"),
-        valueattr("value"),
-        codeattr("code"),
-        classattr("class"),
-        langattr("lang"),
-        protocolattr("protocol")
+     :  protocolnamespace(""),  linesattr("lines"), nameattr("name"),           portnumattr("portnum"),
+        portstartattr("start"), portendattr("end"), threatattr("threat"),       falseposattr("falsepos"),
+        sourceattr("source"),   destattr("dest"),   directionattr("direction"), valueattr("value"),
+        codeattr("code"),       classattr("class"), langattr("lang"),           protocolattr("protocol")
     {
         std::vector< std::string > languages;
         languages.push_back( "english" );
@@ -685,10 +591,6 @@ public:
     {
     }
 
-    std::vector< ProtocolNetUse > const & getNetworkUses( std::string const & protocolName ) const
-    {
-        return lookup( protocolName ).networkuse;
-    }
 
     bool loadDB(const std::string &filename, std::vector< std::string > const & languages)
     {
@@ -734,7 +636,6 @@ public:
         xmlfile.close();
         return rc;
     }
-
     bool startElement(const QString &/*namespaceURI*/, QString const & localName, const QString &/*qName*/, const QXmlAttributes &atts)
     {
         int i;
@@ -1328,25 +1229,6 @@ public:
         unknowndepth++;
         return true;
     }
-
-    void doNetuseLanguage(const QXmlAttributes &atts)
-    {
-        int i;
-        std::string tmp;
-
-        loaddescription = false;
-        i = atts.index(protocolnamespace.c_str(),langattr.c_str());
-        if(i!=-1)
-            tmp = atts.value(i).toStdString();
-        else
-            tmp = "en";
-        if(currentnetuse.descriptionlanguage.empty())
-        {
-            loaddescription = true;
-            currentnetuse.descriptionlanguage = tmp;
-        }
-    }
-
     bool endElement(const QString &/*namespaceURI*/, const QString &/*localName*/, const QString &/*qName*/)
     {
         if(unknowndepth==0)
@@ -1440,7 +1322,6 @@ public:
         unknowndepth--;
         return true;
     }
-
     bool characters(const QString &ch)
     {
         if ( unknowndepth )
@@ -1480,28 +1361,24 @@ public:
         }
         return true;
     }
-
     bool error(const QXmlParseException &exception)
     {
         printParseException(exception);
         errorstate = PROTOCOL_ERROR_PARSE_ERROR;
         return false;
     }
-
     bool fatalError(const QXmlParseException &exception)
     {
         printParseException(exception);
         errorstate = PROTOCOL_ERROR_PARSE_ERROR;
         return false;
     }
-
     bool warning(const QXmlParseException &exception)
     {
         printParseException(exception);
         errorstate = PROTOCOL_ERROR_PARSE_ERROR;
         return false;
     }
-
     QString errorString() const
     {
         switch(errorstate)
@@ -1566,7 +1443,6 @@ public:
                 return ("Unknown error. (You should never see this).");
         }
     }
-
     void printParseException(const QXmlParseException &exception)
     {
         std::stringstream ss;
@@ -1574,6 +1450,24 @@ public:
            << "Column: " << exception.columnNumber() << " "  << exception.systemId().toStdString() << ", "
            << exception.publicId().toStdString()     << ", " << exception.message().toStdString()  << std::endl;
         parseerror.push_back( ss.str() );
+    }
+
+    void doNetuseLanguage(const QXmlAttributes &atts)
+    {
+        int i;
+        std::string tmp;
+
+        loaddescription = false;
+        i = atts.index(protocolnamespace.c_str(),langattr.c_str());
+        if(i!=-1)
+            tmp = atts.value(i).toStdString();
+        else
+            tmp = "en";
+        if(currentnetuse.descriptionlanguage.empty())
+        {
+            loaddescription = true;
+            currentnetuse.descriptionlanguage = tmp;
+        }
     }
 
     ProtocolEntry & lookup( std::string const & name )
@@ -1590,7 +1484,6 @@ public:
         }
         return *pit;
     }
-
     ProtocolEntry const & lookup( std::string const & name ) const
     {
         std::vector< ProtocolEntry >::const_iterator pit = std::find_if( protocolDataBase.begin(), protocolDataBase.end(), boost::phoenix::bind( &ProtocolEntry::name, boost::phoenix::arg_names::arg1) == name );
@@ -1604,6 +1497,72 @@ public:
             }
         }
         return *pit;
+    }
+
+    template <typename func>
+    void ApplyToDB(func & f)
+    {
+        BOOST_FOREACH(ProtocolEntry & i, protocolDataBase)
+            f(i);
+    }
+
+    template<class T>
+    void ApplyToNthInClass(T & func, int i, std::string c)
+    {
+        int n = 0;
+        BOOST_FOREACH(ProtocolEntry & ent, protocolDataBase)
+        {
+            if(ent.Classification == c)
+            {
+                if(n == i)
+                {
+                    func(ent);
+                    break;
+                }
+                n++;
+            }
+        }
+        if (n != i)
+            std::cerr << "Index too great" << std::endl;
+    }
+
+/*this shouldn't be referenced anymore
+    std::vector< ProtocolEntry > const & getProtocolDataBase() const
+    {
+        return protocolDataBase;
+    }
+*/
+    void addProtocolEntry( ProtocolEntry const & pe )
+    {
+        protocolDataBase.push_back( pe );
+    }
+
+    void UserDefinedProtocol(std::string name, uchar udptype, uint startp, uint endp, bool bi)
+    {
+        ProtocolEntry entry( name );
+        entry.longname = name;
+        entry.Classification = "User Defined";
+        ProtocolNetUse netuse;
+        netuse.addDest(ProtocolNetUseDetail(PORTRANGE_RANGE, startp, endp));
+        netuse.setType(udptype);
+        netuse.setBidirectional(bi);
+        entry.addNetwork(netuse);
+        addProtocolEntry(entry);
+    }
+
+    void deleteProtocolEntry( std::string const & name )
+    {
+        std::vector< ProtocolEntry >::iterator pit = std::find_if( protocolDataBase.begin(), protocolDataBase.end(), boost::phoenix::bind( &ProtocolEntry::name, boost::phoenix::arg_names::arg1) == name );
+        if ( pit == protocolDataBase.end() )
+        {
+            pit = std::find_if( protocolDataBase.begin(), protocolDataBase.end(), boost::phoenix::bind( &ProtocolEntry::longname, boost::phoenix::arg_names::arg1) == name );
+            if ( pit == protocolDataBase.end() )
+            {
+                std::cout << "Couldn't find protocol: " << name << std::endl;
+                throw std::string("Protocol not found");
+            }
+        }
+        protocolDataBase.erase(pit);
     }
 };
 

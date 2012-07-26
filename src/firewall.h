@@ -144,13 +144,7 @@ public:
     */
     void addNewMachine( std::string const & zoneName, std::string const & ipAddress )
     {
-//zones are used alot. there are alot of common operations used on them, like 
-//getZone, AddMember, setState. these things have little to do with the firewall
-//state other than they are the firewalls zones. It seems contradictory to have
-//the Protocols be a seprate entity but have the zones be just a part of the firewall.
-//tldr: i think there should be a ZoneDB, with common functions.(it would probably still be a member of the firewall class)
         Zone & zone = getZone( zoneName );
-
         zone.addMemberMachine( IPRange( ipAddress ) );
     }
 
@@ -160,7 +154,6 @@ public:
     void deleteMachine( std::string const & zoneName, std::string const & ipAddress )
     {
         Zone & zone = getZone( zoneName );
-
         zone.deleteMemberMachine( IPRange( ipAddress ) );
     }
 
@@ -170,7 +163,6 @@ public:
     void setNewMachineName( std::string const & zoneName, std::string const & oldMachineName, std::string const & newMachineName )
     {
         Zone & zone = getZone( zoneName );
-
         zone.renameMachine( oldMachineName, newMachineName );
     }
 
@@ -180,7 +172,6 @@ public:
     void setProtocolState( std::string const & zoneFrom, std::string const & zoneTo, std::string const & protocolName, Zone::ProtocolState state )
     {
         Zone & zone = getZone( zoneFrom );
-
         return zone.setProtocolState( zoneTo, protocolName, state );
     }
 
@@ -190,7 +181,6 @@ public:
     Zone::ProtocolState getProtocolState( std::string const & zoneFrom, std::string const & zoneTo, std::string const & protocolName )
     {
         Zone & zone = getZone( zoneFrom );
-
         return zone.getProtocolState( zoneTo, protocolName );
     }
 
@@ -201,9 +191,7 @@ public:
     {
         std::vector< std::string > names;
         BOOST_FOREACH( Zone const & z, zones )
-        {
             names.push_back( z.getName() );
-        }
         return names;
     }
 
@@ -218,10 +206,7 @@ public:
     /*!
     **  \brief  Add a new zone to the firewall
     */
-    void addZone( std::string const & zoneName )
-    {
-        zones.push_back( Zone( zoneName ) );
-    }
+    void addZone( std::string const & zoneName ) { zones.push_back( Zone( zoneName ) );}
 
     /*!
     **  \brief  Delete a named zone from the firewall
@@ -230,9 +215,7 @@ public:
     {
         std::vector< Zone >::iterator zit = std::find_if( zones.begin(), zones.end(), boost::phoenix::bind( &Zone::getName, boost::phoenix::arg_names::arg1) == zoneName );
         if ( zit == zones.end() )
-        {
             throw std::string("Zone not found 1");
-        }
         zones.erase( zit );
     }
 
@@ -243,9 +226,7 @@ public:
     {
         std::vector< Zone >::const_iterator zit = std::find_if( zones.begin(), zones.end(), boost::phoenix::bind( &Zone::getName, boost::phoenix::arg_names::arg1) == name );
         if ( zit == zones.end() )
-        {
             throw std::string("Zone not found 2");
-        }
         return *zit;
     }
     /*!
@@ -255,9 +236,7 @@ public:
     {
         std::vector< Zone >::iterator zit = std::find_if( zones.begin(), zones.end(), boost::phoenix::bind( &Zone::getName, boost::phoenix::arg_names::arg1) == name );
         if ( zit == zones.end() )
-        {
             throw std::string("Zone not found 3");
-        }
         return *zit;
     }
 
@@ -267,15 +246,9 @@ public:
     std::vector< std::string > getConnectedZones( std::string const & zoneFrom ) const
     {
         std::vector< std::string > connectedZones;
-
         BOOST_FOREACH( std::string const & zoneTo, getZoneList() )
-        {
             if ( areZonesConnected( zoneFrom, zoneTo ) )
-            {
                 connectedZones.push_back( zoneTo );
-            }
-        }
-
         return connectedZones;
     }
 
@@ -285,13 +258,9 @@ public:
     void updateZoneConnection( std::string const & zoneFrom, std::string const & zoneTo, bool connected )
     {
         if ( connected )
-        {
             getZone( zoneFrom ).connect( zoneTo );
-        }
         else
-        {
             getZone( zoneFrom ).disconnect( zoneTo );
-        }
     }
 
     /*!
@@ -328,25 +297,6 @@ public:
         zone.setName( newZoneName );
     }
 
-// This function is already dead
-//  /*!
-//  **  \brief Adds a new UDP with the given information
-//  */
-//  void newUserDefinedProtocol(std::string name, uchar udpType, uint udpStartPort, uint udpEndPort, bool bi)
-//  { //we still have udps, we just will not access them the same way. This function will likely go away
-//      pdb.UserDefinedProtocol(name, udpType, udpStartPort, udpEndPort, bi);
-//  }
-
-// This function is already dead
-//  /*!
-//  **  \brief Deletes a User Defined Protocol
-//  **
-//  */
-//  void deleteUserDefinedProtocol( std::string i )
-//  {
-//      pdb.deleteProtocolEntry(i);
-//  }
-
     /*!
     **
     ** \todo Need to throw exception if things don't work.  One case would
@@ -366,49 +316,22 @@ public:
         }
     }
 
-    void setDisabled(bool on)
-    {
-        disabled = on;
-    }
-    bool isDisabled()
-    {
-        return disabled;
-    }
-    void setLocalDynamicPortRangeStart(uint start)
-    {
-        localPortRangeStart = start;
-    }
-    void setLocalDynamicPortRangeEnd( uint end )
-    {
-        localPortRangeEnd = end;
-    }
-    void getLocalDynamicPortRange(uint &start,uint &end)
+    void setDisabled(bool on) { disabled = on; }
+    bool isDisabled() const   { return disabled; }
+    void setLocalDynamicPortRangeStart(uint start) { localPortRangeStart = start; }
+    void setLocalDynamicPortRangeEnd( uint end )   { localPortRangeEnd = end; }
+    void getLocalDynamicPortRange(uint &start,uint &end) const 
     {
         start = localPortRangeStart;
         end = localPortRangeEnd;
     }
 
-    void setDHCPcInterfaceName(const std::string &ifacename)
-    {
-        dhcpcinterfacename = ifacename;
-    }
+    void setDHCPcInterfaceName(const std::string &ifacename) { dhcpcinterfacename = ifacename; }
 
-    std::string getDHCPcInterfaceName()
-    {
-        return dhcpcinterfacename;
-    }
-    void setDHCPdInterfaceName(const std::string &ifacename)
-    {
-        dhcpdinterfacename = ifacename;
-    }
-    std::string getDHCPdInterfaceName()
-    {
-        return dhcpdinterfacename;
-    }
-    bool isSuperUserMode() const
-    {
-        return superUserMode;
-    }
+    std::string getDHCPcInterfaceName() { return dhcpcinterfacename; }
+    void setDHCPdInterfaceName(const std::string &ifacename) { dhcpdinterfacename = ifacename; }
+    std::string getDHCPdInterfaceName() const { return dhcpdinterfacename; }
+    bool isSuperUserMode() const { return superUserMode; }
     /*!
     **  \brief if the current firewall state is modified, save the
     **         new rc.firewall file and apply it.
@@ -450,9 +373,7 @@ public:
         std::ifstream fileinfo( SYSTEM_RC_FIREWALL2  );
 
         if ( superUserMode==false )
-        {
             return; // Sorry, if you are not root then you get no default firewall.
-        }
 
         if ( boost::filesystem::exists( SYSTEM_RC_FIREWALL2 ) )
         {
@@ -479,11 +400,6 @@ public:
             waspreviousfirewall = false;
             factoryDefaults();
         }
-    }
-    std::vector< ProtocolNetUse > getNetworkUse( std::string const & protocolName ) const
-    {
-        std::vector< ProtocolNetUse > protos = pdb.getNetworkUses( protocolName );
-        return protos;
     }
     /*!
     **  \brief Save firewall to filename
@@ -1070,7 +986,7 @@ private:
                     BOOST_FOREACH( std::string const & zoneProtocol, permitZoneProtocols )
                     {
                         stream << "# Allow '" << zoneProtocol <<"'\n";
-                        std::vector< ProtocolNetUse > networkuses = getNetworkUse( zoneProtocol );
+                        std::vector< ProtocolNetUse > networkuses = pdb.lookup(zoneProtocol).networkuse;
 
                         BOOST_FOREACH( ProtocolNetUse & networkuse, networkuses )
                         {
@@ -1111,7 +1027,7 @@ private:
                     {
                         stream << "# Reject '" << zoneProtocol << "'\n";
 
-                        std::vector< ProtocolNetUse > networkuses = getNetworkUse( zoneProtocol );
+                        std::vector< ProtocolNetUse > networkuses = pdb.lookup(zoneProtocol).networkuse;
 
                         BOOST_FOREACH( ProtocolNetUse & networkuse, networkuses )
                         {
