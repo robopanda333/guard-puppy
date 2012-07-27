@@ -17,43 +17,79 @@ email                : simon@simonzone.com
 #pragma once
 
 #include <netinet/in.h>
-#include <netinet/tcp.h>
+//#include <netinet/tcp.h>
 
 #include <vector>
 #include <string>
-#include <iostream>
+//#include <iostream>
 #include <boost/foreach.hpp>
 
 
-#include <QXmlDefaultHandler>
-
-using std::vector;
+//! Holds all information relavant to a single Protocol
+/*!
+ *Contains all the information, and accessors for information relavant to a Protocol.
+ * All helper classes, and structs, will be accessed through this class.
+ * There is no reason for any thing but this class to know about what lies beneath.
+ */
+class ProtocolEntry
+{
+//just to make things tidier
 using std::string;
+
+    string name;//!<Holds the name of the Protocol
+    string longName;//!<Holds the long name. This can be viewed as a short description. For UDPs the name and long name are the same.
+    string longNameLanguage;//!<The language that the long name is in.
+    string description;//!<Holds the description of the protocol. What programs use it, and what not.
+    string descriptionLanguage;//!<The language the description is in. I don't know why this and the longnamelanguage would be different.
+    string classification;//!<To what type the protocol belongs. It may be benifitial to make this a list of strings, so there can be more than one.
+
+    Score threat;//<!The threat level of a protocol, LOW, MEDIUM, or HIGH.
+    Score falsepos;//<!no idea. Figure this one out.
+
+    std::map<string, string> pragma;//!<Holds certian metadata used when generating iptables
+public:
+    //!The valid Score values.
+    enum Score { UNKNOWN, LOW, MEDIUM, HIGH };
+    //!The valid Range types.
+    enum RangeType { RANGE, ANY, PRIVILEGED, NONPRIVILIGED, DYNAMIC };
+};
+
+
 
 //! Holds all Protocols in a nice container
 /*!
  * Has all the accessors and modifiers for a Protocol and it's members.
+ * Unlike the guarddog version of this class, we will not parse XML here. The Firewall manager will handle parseing the XML.
  */
 class ProtocolDB
 {
-    vector<ProtocolEntry> pdb;
+//just to make things tidier
+using std::string;
 
-//!<Before we could only add 'existant' entries
-//!< meaning that the client needed to know about
-//!< what an entry was in detail.
-//!< They really shouldn't
-    void addProtocolEntry( string name );
+    std::vector<ProtocolEntry> pdb;//!<Vector which holds all the entrys in the database
 
+public:
 
-//!<Deletes an entry from the database by name.
-//!<If (there shouldn't be) there is more than one entry with the same name, it deletes the first.
+    //!Adds an Entry by data. The following is a good starting point for an Entry. Can be made with only a name, or things can be specified more directly.
+    //!It will probably always be usefull to change the entry after, especially when importing the XML file
+    //!Throws "ProtocolEntry *name* Already exists!"
+    void addProtocolEntry(string name, ProtocolEntry::RangeType rangeType=ProtocolEntry::RANGE, in_port_t startport = 0,
+                             in_port_t endport = 0, uint8_t portType = IPPROTO_TCP, bool bi = true);//in_port_t is an alias for uint16_t and is the "prefered" type for portnumbers
+
+    //!Deletes an entry from the database by name.
+    //!If (there shouldn't be) there is more than one entry with the same name, it deletes the first.
     void deleteProtocolEntry( string name );
 
-//!Creates and adds a protocol entry.
-    void addProtocolEntry(string name, uchar type=ProtocolEntry::RANGE, uint_16 startport=0, uint_16 endport=0, bool bi=true);
+    //!Applies the functor f to all members of the database
     template <typename func>
-    void ApplyToDB( func & f );           //!<Applies the functor f to all members of the database
-    template <typename func>
-    void ApplyToClass(func & f, string s);//!<Applies the functor f to all members of classification s in the database
+    void applyToDB( func & f );
 
-}
+    //!Applies the functor f to all members of classification s in the database
+    template <typename func>
+    void applyToClass(func & f, string s);
+
+    //!Finds and returns a reference to a Protocol Entry by name
+    ProtocolEntry & lookup( string const & name );
+    //!Finds and returns a const reference to a Protocol Entry by name
+    ProtocolEntry const & lookup( string const & name ) const;
+};
