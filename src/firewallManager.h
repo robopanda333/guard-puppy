@@ -43,24 +43,9 @@ using std::string;
     ProtocolDB & pdb;
     uint unknowndepth; //<!used to skip over unknown tags, apparently
 
-    //I think alot of these could go away with proper use of the passed in variables
-    //for startElement and end element and the like
-    string protocolnamespace,   //!<
-    linesattr,                  //!<
-    nameattr,                   //!<
-    portnumattr,                //!<
-    portstartattr,              //!<
-    portendattr,                //!<
-    threatattr,                 //!<
-    falseposattr,               //!<
-    sourceattr,                 //!<
-    destattr,                   //!<
-    directionattr,              //!<
-    valueattr,                  //!<
-    codeattr,                   //!<
-    classattr,                  //!<
-    langattr,                   //!<
-    protocolattr;               //!<
+    //for readability we'll define the namespace
+    #define protocolnamespace = "";
+
     std::vector<string> parseerror;
     std::vector<string> languagelist;
     bool loaddescription;
@@ -69,7 +54,7 @@ using std::string;
     //! States used for Parsing the XML file
     enum ParserState
     {
-        PROTOCOL_STATE_OUTSIDE,
+        PROTOCOL_STATE_OUTSIDE = 1,
         PROTOCOL_STATE_PROTOCOLDB,
         PROTOCOL_STATE_ENTRY,
         PROTOCOL_STATE_ENTRY_PRAGMA,
@@ -144,25 +129,7 @@ public:
     //!Constructs the parser and automaticly parses and populates the passed in Database
     ProtocolXMLParser( string const & filename, ProtocolDB _pdb ): pdb(_pdb)
     {
-        protocolnamespace = "";
-        linesattr         = "lines";
-        nameattr          = "name";
-        portnumattr       = "portnum";
-        portstartattr     = "start";
-        portendattr       = "end";
-        threatattr        = "threat";
-        falseposattr      = "falsepos";
-        sourceattr        = "source";
-        destattr          = "dest";
-        directionattr     = "direction";
-        valueattr         = "value";
-        codeattr          = "code";
-        classattr         = "class";
-        langattr          = "lang";
-        protocolattr      = "protocol";
-
         languageslist.push_back( "en" );//we want at least one permited language
-
 
         loadDB(filename);
     }
@@ -202,18 +169,241 @@ public:
         return true;
     }
 
-//in the past this function was a nightmare... lets see if we can help...
-bool startElement(QString const & /*namespaceURI*/, )
-{
-}
+    //in the past this function was a nightmare... lets see if we can help...
+    bool startElement(QString const & /*namespaceURI*/, QString const & localName, Qstring const &/*qName*/, QXmlAttributes const & atts )
+    {
+        if(unknowndepth > 0)
+            return unknowndepth++;
 
+        switch(parsestate)
+        {
+            case PROTOCOL_STATE_OUTSIDE:
+                return caseProtocolStateOutside(localName);
+            case PROTOCOL_STATE_PROTOCOLDB:
+                caseProtocolStateProtocolDB(localName, atts);
+            case PROTOCOL_STATE_ENTRY:
+                caseProtocolStateEntry(localName);
+            case PROTOCOL_STATE_NETWORK:
+                caseProtocolStateNetwork(localName);
+            case PROTOCOL_STATE_TCP:
+                caseProtocolStateTCP(localName);
+            case PROTOCOL_STATE_UDP:
+                caseProtocolStateUDP(localName);
+            case PROTOCOL_STATE_ICMP:
+                caseProtocolStateICMP(localName);
+            case PROTOCOL_STATE_IP:
+                caseProtocolStateIP(localName);
+            case PROTOCOL_STATE_TCP_SOURCE: case PROTOCOL_STATE_UDP_SOURCE: case PROTOCOL_STATE_TCP_DEST: case PROTOCOL_STATE_UDP_DEST:
+                caseProtocolState(localName);
+            default:
+                return unknowndepth++;
+        }
+    }
+    bool endElement(QString const &/*namespaceURI*/, Qstring const &/*localName*/, QString const &/*qName*/)
+    {
+        if(unknowndepth>0)
+        {
+            unknowndepth--;
+            return true;
+        }
+        switch(parsestate)
+        {
+            case PROTOCOL_STATE_PROTOCOLDB:
+                return parsestate = PROTOCOL_STATE_FINISHED;
+            case PROTOCOL_STATE_ENTRY:
+                //addProtocolEntry( currententry );
+                return parsestate = PROTOCOL_STATE_PROTOCOLDB;
+            case PROTOCOL_STATE_LONGNAME: case PROTOCOL_STATE_DESCRIPTION: case PROTOCOL_STATE_SECURITY: case PROTOCOL_STATE_NETWORK: case PROTOCOL_STATE_CLASSIFICATION: case PROTOCOL_STATE_ENTRY_PRAGMA:
+                return parsestate = PROTOCOL_STATE_ENTRY;
+            case PROTOCOL_STATE_TCP: case PROTOCOL_STATE_UDP: case PROTOCOL_STATE_ICMP: case PROTOCOL_STATE_IP:
+                //currententry.addNetwork( currentnetuse );
+                return parsestate = PROTOCOL_STATE_NETWORK;
+            case PROTOCOL_STATE_TCP_SOURCE: case PROTOCOL_STATE_TCP_DEST: case PROTOCOL_STATE_TCP_DESCRIPTION: case PROTOCOL_STATE_TCP_PRAGMA:
+                return parsestate = PROTOCOL_STATE_TCP;
+            case PROTOCOL_STATE_UDP_SOURCE: case PROTOCOL_STATE_UDP_DESCRIPTION: case PROTOCOL_STATE_UDP_PRAGMA:
+                return parsestate = PROTOCOL_STATE_UDP;
+            case PROTOCOL_STATE_ICMP_TYPE:
+                //currentnetuse.addSource( currentnetusedetail );
+                return parsestate = PROTOCOL_STATE_ICMP;
+            case PROTOCOL_STATE_ICMP_DESCRIPTION: case PROTOCOL_STATE_ICMP_PRAGMA:
+                return parsestate = PROTOCOL_STATE_ICMP;
+            case PROTOCOL_STATE_STATE_IP_DESCRIPTION: case PROTOCOL_STATE_IP_PRAGMA:
+                return parsestate = PROTOCOL_STATE_IP;
+            case PROTOCOL_STATE_TCP_SOURCE_PORT: case PROTOCOL_STATE_TCP_SOURCE_PORTRANGE:
+                //currentnetuse.addSource( currentnetusedetail );
+                return parsestate = PROTOCOL_STATE_TCP_SOURCE;
+            case PROTOCOL_STATE_TCP_DEST_PORT: case PROTOCOL_STATE_TCP_DEST_PORTRANGE:
+                //currentnetuse.addDest( currentnetusedetail );
+                return parsestate = PROTOCOL_STATE_TCP_DEST;
+            case PROTOCOL_STATE_UDP_SOURCE_PORT: case PROTOCOL_STATE_UDP_SOURCE_PORTRANGE:
+                //currentnetuse.addSource( currentnetusedetail );
+                return parsestate = PROTOCOL_STATE_UDP_SOURCE;
+            case PROTOCOL_STATE_UDP_DEST_PORT: case PROTOCOL_STATE_UDP_DEST_PORTRANGE:
+                //currentnetuse.addDest( currentnetusedetail );
+                return parsestate = PROTOCOL_STATE_UDP_DEST;
+            default: return false;
+        }
 
+    }
+    bool characters( QString const & ch )
+        {
+            if( unknowndepth )
+                return true;
+            switch( parsestate )
+            {
+                case PROTOCOL_STATE_LONGNAME:
+                    if( loadlongname )
+                        currententry.longname = ch.toStdString();
+                    return true;
+                case PROTOCOL_STATE_DESCRIPTION:
+                    if( loaddescription )
+                        currententry.description = ch.toStdString();
+                    return true;
+                case PROTOCOL_STATE_ENTRY_PRAGMA:
+                    currententry.addPragmaValue( ch.toStdString() );
+                    return true;
+                case PROTOCOL_STATE_TCP_DESCRIPTION: case PROTOCOL_STATE_UDP_DESCRIPTION: case PROTOCOL_STATE_ICMP_DESCRIPTION:
+                    if( loaddescription )
+                        currentnetuse.description = ch.toStdString();
+                    return true;
+                case PROTOCOL_STATE_TCP_PRAGMA: case PROTOCOL_STATE_UDP_PRAGMA: case PROTOCOL_STATE_ICMP_PRAGMA:
+                    currentnetuse.addPragmaValue( ch.toStdString() );
+                    return true;
+                default:
+                    return true;
+            }
+        }
 
-
-
-
+    //maybe this should be a static member of ProtocolEntry?
+    ProtocolEntry::Score getScore(string const & s)
+    {
+        if( s == "low" )
+            return ProtocolEntry::LOW;
+        else if (s == "medium" )
+            return ProtocolEntry::MEDIUM;
+        else if (s == "high" )
+            return ProtocolEntry::HIGH;
+        else
+            return ProtocolEntry::UNKNOWN;
+    }
+//start element case functions
+    void caseProtocolStateOutside( QString const & localName )
+    {
+        if( localName == "protocoldb" )
+            return parsestate = PROTOCOL_STATE_PROTOCOLDB;
+        return unknowndepth++;
+    }
+    void caseProtocolStateProtocolDB( QString const & localName , QXmlAttributes const & atts )
+    {
+        int i;
+        if( localName == "protocol" )
+        {
+            currententry = ProtocolEntry();
+            i = atts.index( protocolnamespace, "name" );
+            if( i == -1 )
+            {
+                std::cerr << " errorstate = PROTOCOL_ERROR_ENTRY_NAME_ATTR_NOT_FOUND" << std::endl;
+                errorstate = PROTOCOL_ERROR_ENTRY_NAME_ATTR_NOT_FOUND;
+                return false;
+            }
+            currententry.setName( atts.value(i).toStdString() );
+            parsestate = PROTOCOL_STATE_ENTRY;
+            return true;
+        }
+        return unknowndepth++;
+    }
+    void caseProtocolStateEntry( QString const & localName, QXmlAttributes const & atts )
+    {
+        if( localName == "longname" )
+            return caseProtocolStateEntryLongName( atts );
+        else if( localName == "description" )
+            return caseProtocolStateEntryDescription( atts );
+        else if( localName == "classification" )
+            return caseProtocolStateEntryClassification( atts );
+        else if( localName == "network" )
+            return caseProtocolStateEntryNetwork();
+        else if( localName == "security" )
+            return caseProtocolStateEntrySecurity( atts );
+        else if( localName == "pragma" )
+            return caseProtocolStateEntryPragma( atts );
+        else
+            return unknowndepth++;
+    }
+        void caseProtocolStateEntryLongName(QXmlAttributes const & atts)
+        {
+            string tmp = "en";
+            loadlongname = currententry.longnamelanguage.empty()
+            int i = atts.index( protocolnamespace, "lang" );
+            if( i != -1 )
+                tmp = atts.value(i).toStdString();
+            if( loadlongname )
+                currententry.longnamelanguage = tmp;
+            return parsestate = PROTOCOL_STATE_LONGNAME;
+        }
+        void caseProtocolStateEntryDescription(QXmlAttributes const & atts);
+        {
+            string tmp = "en";
+            loaddescription = currententry.descriptionlanguage.empty();
+            int i = atts.index(protocolnamespace, "lang");
+            if( i != -1 )
+                tmp = atts.value(i).toStdString();
+            if( loaddescription )
+                currententry.descriptionlanguage = tmp;
+            return parsestate = PROTOCOL_STATE_DESCRIPTION;
+        }
+        void caseProtocolStateEntryClassification(QXmlAttributes const & atts)
+        {
+            int i = atts.index(protocolnamespace, "class");
+            if ( i != -1 )
+                currententry.classification = atts.value(i).toStdString();
+            return parsestate = PROTOCOL_STATE_CLASSIFICATION;
+        }
+        void caseProtocolStateEntryNetwork()
+        {
+            return parsestate = PROTOCOL_STATE_NETWORK;
+        }
+        void caseProtocolStateEntrySecurity(QXmlAttributes const & atts)
+        {
+            int i = atts.index( protocolnamespace, "threat");
+            if( i != -1 )
+                currententry.threat = getScore( atts.value(i).toStdString() );
+            i = atts.index( protocolnamespace, "falsepos");
+            if( i != -1 )
+                currententry.fasepos = getScore( atts.value(i).toStdString() );
+            return parsestate = PROTOCOL_STATE_SECURITY;
+        }
+        void caseProtocolStateEntryPragma(QXmlAttributes const & atts);
+    void caseProtocolStateNetwork();
+        void caseProtocolStateNetworkTCP();
+        void caseProtocolStateNetworkUDP();
+        void caseProtocolStateNetworkICMP();
+        void caseProtocolStateNetworkIP();
+    void caseProtocolStateTCP();
+    void caseProtocolStateUDP();
+    void caseProtocolStateICMP();
+    void caseProtocolStateIP();
+    void caseProtocolStateSrcDest()
+        void caseProtocolStateSrcDestPort();
+        void caseProtocolStateSrcDestRange();
 
 };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
