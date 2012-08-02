@@ -24,6 +24,29 @@ email                : simon@simonzone.com
 //#include <iostream>
 #include <boost/foreach.hpp>
 
+class ProtocolEntry::PortRange
+
+
+class ProtocolEntry::ProtocolNetUse
+{
+    Role sourceRole;
+    PortRange sourceRange;
+    Role destRole;
+    PortRange destRange;
+    uint8_t protocolType
+public:
+//!the Roles a destination or source can play
+/*!
+ *In guarddog this was refered to as an Entity, i feel that
+ *Role is a bit better but maybe not.
+ */
+enum Role { SERVER, CLIENT };
+
+    void setSourceRole( Role );
+    void setDestRole( Role );
+
+};
+
 
 //! Holds all information relavant to a single Protocol
 /*!
@@ -36,12 +59,18 @@ class ProtocolEntry
 //just to make things tidier
 using std::string;
 
+    class ProtocolNetUse;
+    class PortRange;
+
     string name;//!<Holds the name of the Protocol
     string longName;//!<Holds the long name. This can be viewed as a short description. For UDPs the name and long name are the same.
     string longNameLanguage;//!<The language that the long name is in.
     string description;//!<Holds the description of the protocol. What programs use it, and what not.
     string descriptionLanguage;//!<The language the description is in. I don't know why this and the longnamelanguage would be different.
     string classification;//!<To what type the protocol belongs. It may be benifitial to make this a list of strings, so there can be more than one.
+
+    std::vector<ProtocolNet> source;
+    std::vector<ProtocolNet> dest;
 
     Score threat;//<!The threat level of a protocol, LOW, MEDIUM, or HIGH.
     Score falsepos;//<!no idea. Figure this one out.
@@ -70,12 +99,15 @@ using std::string;
 
 public:
 
-    //!Adds an Entry by data. The following is a good starting point for an Entry. Can be made with only a name, or things can be specified more directly.
-    //!It will probably always be usefull to change the entry after, especially when importing the XML file
+    //!Adds an Entry by name.
+    //!The networks of the Protocol are constructed empty
     //!Throws "ProtocolEntry *name* Already exists!"
-    void addProtocolEntry(string name, ProtocolEntry::RangeType rangeType=ProtocolEntry::RANGE, in_port_t startport = 0,
+    void addProtocolEntry(string name);
+    
+    //!Adds an Entry by data.
+    //!Adds a default network source and destination (the source being completly open, the destination being specified)
+    void addProtocolEntry(string name , ProtocolEntry::RangeType rangeType, in_port_t startport = 0,
                              in_port_t endport = 0, uint8_t portType = IPPROTO_TCP, bool bi = true);//in_port_t is an alias for uint16_t and is the "prefered" type for portnumbers
-
     //!Deletes an entry from the database by name.
     //!If (there shouldn't be) there is more than one entry with the same name, it deletes the first.
     void deleteProtocolEntry( string name );
@@ -93,3 +125,23 @@ public:
     //!Finds and returns a const reference to a Protocol Entry by name
     ProtocolEntry const & lookup( string const & name ) const;
 };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
