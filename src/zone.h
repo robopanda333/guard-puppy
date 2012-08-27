@@ -11,6 +11,13 @@
 
 #include "protocoldb.h"
 #include "iprange.h"
+#include "zoneImportStrategy.h"
+
+#include <iostream>
+#include <fstream>
+#include <boost/regex.hpp>
+#include <boost/lexical_cast.hpp>
+#include <boost/numeric/conversion/cast.hpp>
 
 /*
 **  Each zone maintains a list of IPaddress that define this zone and
@@ -68,6 +75,7 @@ public:
         protocols     = rhs.protocols;
         id            = rhs.id;
 
+        connections   = rhs.connections;
         return *this;
     }
 
@@ -131,11 +139,6 @@ public:
     {
         protocols[ toZone.name ][ proto.getName() ] = state;
     }
-
-    /*!
-    **  \todo This is debatable whether it's a valid function or not.
-    **       At a minimum, it's poorly named or in the wrong place.
-    */
     bool editable() const
     {
         switch ( zonetype )
@@ -180,19 +183,6 @@ public:
         return protocolsNames;
     }
 
-#if 0
-    ProtocolState getProtocolState(Zone const & toZone, ProtocolEntry const & proto)
-    {
-        if ( protocols.find( toZone.name ) != protocols.end() )
-        {
-            if ( protocols[toZone.name].find( proto.name ) != protocols[toZone.name].end() )
-            {
-                return protocols[toZone.name][proto.name];
-            }
-        }
-        return DENY;
-    }
-#endif
     void denyAllProtocols( Zone const & toZone )
     {
         if ( protocols.find( toZone.name ) != protocols.end() )
@@ -218,21 +208,33 @@ public:
             connections.push_back( zoneTo );
         }
     }
-
     void disconnect( std::string const & zoneTo )
     {
-        std::vector< std::string >::iterator i = std::find( connections.begin(), connections.end(), zoneTo );
-        if ( i != connections.end() )
+        if(!isConnectionMutable(zoneTo))
         {
-            connections.erase( i );
+            std::vector< std::string >::iterator i = std::find( connections.begin(), connections.end(), zoneTo );
+            if ( i != connections.end() )
+            {
+                connections.erase( i );
+            }
         }
     }
-
     bool isConnectedTo( std::string const & zoneName ) const
     {
         return std::find( connections.begin(), connections.end(), zoneName ) != connections.end();
     }
-
+    bool isConnectionMutable(std::string const & toZone)
+    {
+        if(isLocal() && (toZone=="Internet"))
+        {
+            return false;
+        }
+        if(isInternet() && (toZone=="Local"))
+        {
+            return false;
+        }
+        return true;
+    }
     bool isConnectionMutable(Zone const & toZone)
     {
         if(isLocal() && toZone.isInternet())
@@ -244,6 +246,16 @@ public:
             return false;
         }
         return true;
+    }
+
+    void ZoneImport(std::string const & filename)
+    {
+        std::ifstream in(filename.c_str());
+        if( in.is_open() )
+        {
+            ZoneImportABCstrategy * strategy = new ZoneImportP2P;
+            strategy->Import(in, *this);
+        }
     }
 };
 

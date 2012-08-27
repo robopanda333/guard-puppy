@@ -176,7 +176,11 @@
                </layout>
               </item>
               <item>
-               <widget class="QListWidget" name="zoneAddressListBox"/>
+               <widget class="QListWidget" name="zoneAddressListBox">
+                <property name="batchSize">
+                 <number>50</number>
+                </property>
+               </widget>
               </item>
               <item>
                <layout class="QHBoxLayout" name="horizontalLayout_6">
@@ -191,6 +195,17 @@
                  <widget class="QPushButton" name="deleteZoneAddressPushButton">
                   <property name="text">
                    <string>Dele&amp;te Address</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </item>
+              <item>
+               <layout class="QHBoxLayout" name="horizontalLayout_28">
+                <item>
+                 <widget class="QPushButton" name="zoneFileImportPushButton">
+                  <property name="text">
+                   <string>Import from file</string>
                   </property>
                  </widget>
                 </item>
@@ -726,6 +741,9 @@
            </item>
            <item>
             <layout class="QHBoxLayout" name="horizontalLayout_17">
+             <property name="spacing">
+              <number>0</number>
+             </property>
              <item>
               <widget class="QLabel" name="label_17">
                <property name="text">
@@ -756,6 +774,22 @@
              </property>
             </widget>
            </item>
+           <item>
+            <spacer name="verticalSpacer_3">
+             <property name="orientation">
+              <enum>Qt::Vertical</enum>
+             </property>
+             <property name="sizeType">
+              <enum>QSizePolicy::Minimum</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>40</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
           </layout>
          </item>
          <item>
@@ -766,6 +800,12 @@
            <layout class="QVBoxLayout" name="verticalLayout_8">
             <item>
              <layout class="QHBoxLayout" name="horizontalLayout_15">
+              <property name="spacing">
+               <number>0</number>
+              </property>
+              <property name="sizeConstraint">
+               <enum>QLayout::SetMinimumSize</enum>
+              </property>
               <item>
                <widget class="QCheckBox" name="enableDhcpCheckBox">
                 <property name="text">
@@ -792,6 +832,13 @@
               </item>
              </layout>
             </item>
+            <item>
+             <widget class="QPushButton" name="advRestoreFactoryDefaultsPushButton">
+              <property name="text">
+               <string>Restore to &amp;factory defaults...</string>
+              </property>
+             </widget>
+            </item>
            </layout>
           </widget>
          </item>
@@ -806,12 +853,15 @@
            </property>
            <layout class="QVBoxLayout" name="verticalLayout_10">
             <item>
-             <widget class="QTreeWidget" name="userDefinedProtocolTreeWidget">
+             <widget class="QTreeView" name="userDefinedProtocolTreeView">
               <property name="editTriggers">
-               <set>QAbstractItemView::NoEditTriggers</set>
+               <set>QAbstractItemView::DoubleClicked</set>
               </property>
               <property name="alternatingRowColors">
                <bool>true</bool>
+              </property>
+              <property name="selectionMode">
+               <enum>QAbstractItemView::SingleSelection</enum>
               </property>
               <property name="selectionBehavior">
                <enum>QAbstractItemView::SelectRows</enum>
@@ -819,54 +869,12 @@
               <property name="allColumnsShowFocus">
                <bool>true</bool>
               </property>
-              <property name="columnCount">
-               <number>3</number>
-              </property>
-              <attribute name="headerVisible">
-               <bool>false</bool>
-              </attribute>
-              <attribute name="headerCascadingSectionResizes">
-               <bool>false</bool>
+              <attribute name="headerDefaultSectionSize">
+               <number>120</number>
               </attribute>
               <attribute name="headerDefaultSectionSize">
-               <number>100</number>
+               <number>120</number>
               </attribute>
-              <attribute name="headerMinimumSectionSize">
-               <number>30</number>
-              </attribute>
-              <attribute name="headerStretchLastSection">
-               <bool>true</bool>
-              </attribute>
-              <attribute name="headerCascadingSectionResizes">
-               <bool>false</bool>
-              </attribute>
-              <attribute name="headerDefaultSectionSize">
-               <number>100</number>
-              </attribute>
-              <attribute name="headerVisible">
-               <bool>false</bool>
-              </attribute>
-              <attribute name="headerMinimumSectionSize">
-               <number>30</number>
-              </attribute>
-              <attribute name="headerStretchLastSection">
-               <bool>true</bool>
-              </attribute>
-              <column>
-               <property name="text">
-                <string>Protocol</string>
-               </property>
-              </column>
-              <column>
-               <property name="text">
-                <string>Type</string>
-               </property>
-              </column>
-              <column>
-               <property name="text">
-                <string>Range</string>
-               </property>
-              </column>
              </widget>
             </item>
             <item>
@@ -888,20 +896,6 @@
              </layout>
             </item>
             <item>
-             <layout class="QHBoxLayout" name="horizontalLayout_20">
-              <item>
-               <widget class="QLabel" name="label_18">
-                <property name="text">
-                 <string>Name:</string>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QLineEdit" name="userDefinedProtocolNameLineEdit"/>
-              </item>
-             </layout>
-            </item>
-            <item>
              <layout class="QHBoxLayout" name="horizontalLayout_14">
               <item>
                <widget class="QPushButton" name="NewPortRangePushButton">
@@ -919,135 +913,101 @@
               </item>
              </layout>
             </item>
-            <item>
-             <layout class="QHBoxLayout" name="horizontalLayout_22">
-              <item>
-               <widget class="QLabel" name="label_20">
-                <property name="text">
-                 <string>Ports</string>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QSpinBox" name="userDefinedProtocolPortStartSpinBox">
-                <property name="minimum">
-                 <number>0</number>
-                </property>
-                <property name="maximum">
-                 <number>65535</number>
-                </property>
-                <property name="value">
-                 <number>0</number>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QLabel" name="label_21">
-                <property name="text">
-                 <string>-</string>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QSpinBox" name="userDefinedProtocolPortEndSpinBox">
-                <property name="maximum">
-                 <number>65535</number>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QComboBox" name="userDefinedProtocolTypeComboBox">
-                <item>
-                 <property name="text">
-                  <string>TCP</string>
-                 </property>
-                </item>
-                <item>
-                 <property name="text">
-                  <string>UDP</string>
-                 </property>
-                </item>
-               </widget>
-              </item>
-              <item>
-               <widget class="QCheckBox" name="userDefinedProtocolBidirectionalCheckBox">
-                <property name="text">
-                 <string>Bidirectional</string>
-                </property>
-               </widget>
-              </item>
-             </layout>
-            </item>
-            <item>
-             <layout class="QHBoxLayout" name="horizontalLayout_21"/>
-            </item>
            </layout>
           </widget>
          </item>
          <item>
-          <layout class="QVBoxLayout" name="verticalLayout_12">
-           <item>
-            <widget class="QGroupBox" name="groupBox_6">
-             <property name="title">
-              <string>Import/Export</string>
-             </property>
-             <layout class="QVBoxLayout" name="verticalLayout_11">
+          <layout class="QVBoxLayout" name="verticalLayout_12"/>
+         </item>
+         <item>
+          <widget class="QGroupBox" name="groupBox_6">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="title">
+            <string>Import/Export</string>
+           </property>
+           <layout class="QVBoxLayout" name="verticalLayout_11">
+            <item>
+             <layout class="QHBoxLayout" name="horizontalLayout_23">
               <item>
-               <layout class="QHBoxLayout" name="horizontalLayout_23">
-                <item>
-                 <widget class="QLabel" name="label_22">
-                  <property name="text">
-                   <string>Description:</string>
-                  </property>
-                 </widget>
-                </item>
-                <item>
-                 <spacer name="horizontalSpacer_6">
-                  <property name="orientation">
-                   <enum>Qt::Horizontal</enum>
-                  </property>
-                  <property name="sizeHint" stdset="0">
-                   <size>
-                    <width>40</width>
-                    <height>20</height>
-                   </size>
-                  </property>
-                 </spacer>
-                </item>
-               </layout>
+               <widget class="QLabel" name="label_22">
+                <property name="maximumSize">
+                 <size>
+                  <width>200</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
+                <property name="text">
+                 <string>Description:</string>
+                </property>
+               </widget>
               </item>
               <item>
-               <widget class="QTextEdit" name="descriptionEdit"/>
-              </item>
-              <item>
-               <layout class="QHBoxLayout" name="horizontalLayout_24">
-                <item>
-                 <widget class="QPushButton" name="advImportPushButton">
-                  <property name="text">
-                   <string>&amp;Import...</string>
-                  </property>
-                 </widget>
-                </item>
-                <item>
-                 <widget class="QPushButton" name="advExportPushButton">
-                  <property name="text">
-                   <string>E&amp;xport ...</string>
-                  </property>
-                 </widget>
-                </item>
-               </layout>
+               <spacer name="horizontalSpacer_4">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeType">
+                 <enum>QSizePolicy::Minimum</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
               </item>
              </layout>
-            </widget>
-           </item>
-           <item>
-            <widget class="QPushButton" name="advRestoreFactoryDefaultsPushButton">
-             <property name="text">
-              <string>Restore to &amp;factory defaults...</string>
-             </property>
-            </widget>
-           </item>
-          </layout>
+            </item>
+            <item>
+             <widget class="QTextEdit" name="descriptionEdit">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>250</width>
+                <height>16777215</height>
+               </size>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="advImportPushButton">
+              <property name="maximumSize">
+               <size>
+                <width>200</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="text">
+               <string>&amp;Import...</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="advExportPushButton">
+              <property name="maximumSize">
+               <size>
+                <width>200</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="text">
+               <string>E&amp;xport ...</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
          </item>
         </layout>
        </item>

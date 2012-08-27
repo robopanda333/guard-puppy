@@ -69,7 +69,8 @@ void GuardPuppyDialog_w::on_zoneListWidget_currentItemChanged( QListWidgetItem *
 void GuardPuppyDialog_w::on_zoneNameLineEdit_textChanged( QString const & text )
 {
     std::string s = text.toStdString();
-    std::replace(s.begin(), s.end(), ' ', '_');
+    std::replace( s.begin(), s.end(), ' ', '_');
+
     firewall.zoneRename( currentZoneName(), s );
 
     if ( zoneListWidget->currentItem() )
@@ -110,11 +111,9 @@ void GuardPuppyDialog_w::on_zoneAddressLineEdit_textChanged( QString const & tex
 
 void GuardPuppyDialog_w::on_newZonePushButton_clicked()
 {
-    firewall.addZone( "new zone" );
-    zoneListWidget->addItem( "new zone" );
-//    protocolZoneListWidget->addItem( "new zone" );
+    firewall.addZone( "new_zone" );
+    zoneListWidget->addItem( "new_zone" );
     zoneListWidget->setCurrentRow( zoneListWidget->count() - 1 );
-//    protocolZoneListWidget->setCurrentRow( protocolZoneListWidget->count() - 1 );
 }
 
 void GuardPuppyDialog_w::on_deleteZonePushButton_clicked()
@@ -133,6 +132,8 @@ void GuardPuppyDialog_w::on_newZoneAddressPushButton_clicked()
     firewall.addNewMachine( currentZoneName(), "addr" );
 
     zoneAddressListBox->addItem( "addr" );
+    
+    setZoneAddressGUI( firewall.getZone( currentZoneName()) );
     zoneAddressListBox->setCurrentRow( zoneAddressListBox->count() - 1 );
 }
 
@@ -165,7 +166,6 @@ void GuardPuppyDialog_w::rebuildGui()
         zoneListWidget->setCurrentRow( 0 );
         protocolZoneListWidget->setCurrentRow( 0 );
 
-        buildConnectionGUI();
 
         if ( firewall.zoneCount() > 0 && currentZoneName() != "" )
         {
@@ -274,8 +274,6 @@ void GuardPuppyDialog_w::createProtocolPages()
 {
     protocolTreeWidget->clear();
 
-    //protocolTreeWidget->setColumnCount( 1 );
-
     std::vector< std::string > connectedZones = firewall.getConnectedZones( currentProtocolZoneName() );
     QStringList columns;
     columns += "Network Protocol";
@@ -285,7 +283,7 @@ void GuardPuppyDialog_w::createProtocolPages()
     }
 
     protocolTreeWidget->setHeaderLabels( columns );
-    
+
     AddProtocolToTable_ aptt(*this, connectedZones);
     pdb.ApplyToDB(aptt);
 
@@ -373,6 +371,7 @@ void GuardPuppyDialog_w::setZoneAddressGUI( ::Zone const & zone)
     }
 
     newZoneAddressPushButton->setEnabled(zone.editable());
+    zoneFileImportPushButton->setEnabled(zone.editable());
 
     if(!zone.getMemberMachineList().empty() )
     {
@@ -400,6 +399,7 @@ void GuardPuppyDialog_w::setZonePageEnabled(::Zone const & thisZone, bool enable
 
         newZoneAddressPushButton->setEnabled(thisZone.editable());
 //        deleteZoneAddressPushButton->setEnabled(thisZone.editable());
+        zoneFileImportPushButton->setEnabled(thisZone.editable());
 
         zoneNameLineEdit->setEnabled(true);
         zoneCommentLineEdit->setEnabled(true);
@@ -425,12 +425,7 @@ void GuardPuppyDialog_w::setZonePageEnabled(::Zone const & thisZone, bool enable
         zoneAddressListBox->setEnabled(false);
         zoneNameLineEdit->setEnabled(false);
         zoneCommentLineEdit->setEnabled(false);
-//        deleteZoneAddressPushButton->setEnabled(false);
-
-        newZoneAddressPushButton->setEnabled(false);
-//        deleteZoneAddressPushButton->setEnabled(false);
-        zoneAddressLineEdit->setEnabled(false);
-        zoneAddressListBox->setEnabled(false);
+        zoneFileImportPushButton->setEnabled(false);
     }
 }
 
@@ -510,10 +505,31 @@ void GuardPuppyDialog_w::on_advExportPushButton_clicked()
     std::string filename = QFileDialog::getSaveFileName(this, tr("Import GuardPuppy Config"), "~/.firewall.sh", tr("All Files (*)")).toStdString();
     firewall.save(filename);
 }
-void GuardPuppyDialog_w::on_advRestoreFactoryDefaultsPushButton_clicked(){
+void GuardPuppyDialog_w::on_advRestoreFactoryDefaultsPushButton_clicked()
+{
     firewall.factoryDefaults();
     rebuildGui();
 }
+
+
+void GuardPuppyDialog_w::on_zoneFileImportPushButton_clicked()
+{
+    std::string filename;
+    try
+    {
+        filename = QFileDialog::getOpenFileName(this, tr("IP List Import"), "~/", tr("P2P (*.p2p *.P2P)")).toStdString();
+    }
+    catch(...)
+    {
+        return;
+    }
+    if(filename != "")
+    {
+        firewall.getZone( currentZoneName()).ZoneImport(filename);
+        setZoneAddressGUI( firewall.getZone( currentZoneName()) );
+    }
+}
+
 void GuardPuppyDialog_w::on_newUserDefinedProtocolPushButton_clicked()
 {
     std::string name        =   "New Protocol";
@@ -523,20 +539,32 @@ void GuardPuppyDialog_w::on_newUserDefinedProtocolPushButton_clicked()
     bool   udpBidirectional =   false;
     pdb.UserDefinedProtocol(name, udpType, udpStartPort, udpEndPort, udpBidirectional);
     rebuildGui();
-    QTreeWidgetItem * p = userDefinedProtocolTreeWidget->topLevelItem(userDefinedProtocolTreeWidget->topLevelItemCount()-1);
-    userDefinedProtocolTreeWidget->scrollToItem(p);
-    userDefinedProtocolTreeWidget->expandItem(p);
-    userDefinedProtocolTreeWidget->setCurrentItem(p);
+    int i = 0;//there is always gunna be one.
+    QStandardItemModel const * model = dynamic_cast<QStandardItemModel const *>(userDefinedProtocolTreeView->model());
+    while(model->indexFromItem(model->item(++i)).isValid());
+    QModelIndex item = model->indexFromItem(model->item(--i));
+    userDefinedProtocolTreeView->expand(item);
+    userDefinedProtocolTreeView->setCurrentIndex(item);
+    userDefinedProtocolTreeView->scrollTo(item);
 }
 
 void GuardPuppyDialog_w::on_deleteUserDefinedProtocolPushButton_clicked()
 {
-    QTreeWidgetItem * item = userDefinedProtocolTreeWidget->currentItem();
-    if(item)
+    QModelIndex item = userDefinedProtocolTreeView->currentIndex();
+    if(item.isValid())
     {
-        std::string s = item->text(0).toStdString();
-        pdb.deleteProtocolEntry(s);
+        int itemrow = item.row();
+        std::string s = item.sibling(itemrow, 0).data().toString().toStdString();
+        firewall.deleteUserDefinedProtocol(s);
         rebuildGui();
+        QStandardItemModel const * model = dynamic_cast<QStandardItemModel const *>(userDefinedProtocolTreeView->model());
+        item = model->indexFromItem(model->item(itemrow>0?itemrow-1:0));
+        if(item.isValid())
+        {
+            userDefinedProtocolTreeView->expand(item);
+            userDefinedProtocolTreeView->setCurrentIndex(item);
+            userDefinedProtocolTreeView->scrollTo(item);
+        }
     }
 }
 
@@ -544,15 +572,18 @@ void GuardPuppyDialog_w::on_NewPortRangePushButton_clicked()
 {
     int i; int j;
     CurrentlySelectedUDPIndexes(i, j);
-    if( i>=0 && j>=0 )
+    if( i>=0 )
     {
-        addNewRange_ anr;
-        pdb.ApplyToNthInClass(anr, i, "User Defined");
-        rebuildGui();
-        QTreeWidgetItem * p = userDefinedProtocolTreeWidget->topLevelItem(i);
-        userDefinedProtocolTreeWidget->scrollToItem(p);
-        userDefinedProtocolTreeWidget->expandItem(p);
-        userDefinedProtocolTreeWidget->setCurrentItem(p->child(p->childCount()-1));
+        {
+            addNewRange_ anr;
+            firewall.ApplyToNthInClass(anr, i, "User Defined");
+            rebuildGui();
+        }
+        QStandardItemModel const * model = dynamic_cast<QStandardItemModel const *>(userDefinedProtocolTreeView->model());
+        QModelIndex root = model->indexFromItem(model->item(0));
+        userDefinedProtocolTreeView->expand(root.sibling(i,0));
+        userDefinedProtocolTreeView->setCurrentIndex(root.sibling(i,0));
+        userDefinedProtocolTreeView->scrollTo(root.sibling(i,0));
     }
 }
 void GuardPuppyDialog_w::on_deletePortRangePushButton_clicked()
@@ -561,52 +592,35 @@ void GuardPuppyDialog_w::on_deletePortRangePushButton_clicked()
     CurrentlySelectedUDPIndexes(i, j);
     if( i>=0 && j>=0 )
     {
-        QTreeWidgetItem * p = userDefinedProtocolTreeWidget->topLevelItem(i);
-        if(p->childCount()>1)
+        if(userDefinedProtocolTreeView->currentIndex().sibling(1,0).isValid())//make sure there is more than 1
         {
-            deleteRange_ dr(j);
-            pdb.ApplyToNthInClass(dr, i, "User Defined");
-            rebuildGui();
-            userDefinedProtocolTreeWidget->scrollToItem(p);
-            userDefinedProtocolTreeWidget->expandItem(p);
-            userDefinedProtocolTreeWidget->setCurrentItem(p->child(p->childCount()-1));
+            {
+                deleteRange_ dr(j);
+                firewall.ApplyToNthInClass(dr, i, "User Defined");
+                rebuildGui();
+            }
+            QStandardItemModel const * model = dynamic_cast<QStandardItemModel const *>(userDefinedProtocolTreeView->model());
+            QModelIndex root = model->indexFromItem(model->item(0));
+            userDefinedProtocolTreeView->expand(root.sibling(i,0));
+            userDefinedProtocolTreeView->setCurrentIndex(root.sibling(i,0).child(0,0));
+            userDefinedProtocolTreeView->scrollTo(root.sibling(i,0));
         }
     }
 }
 
-void GuardPuppyDialog_w::on_userDefinedProtocolTreeWidget_currentItemChanged(QTreeWidgetItem* current, QTreeWidgetItem*)
-{
-    int i;
-    int j;
-    CurrentlySelectedUDPIndexes(i,j);
-    if(current)
-    {
-        std::string s = current->text(0).toStdString();
-        if(j>=0)
-            setUserDefinedProtocolGUI(s, j);
-    }
-}
-
-void GuardPuppyDialog_w::setUserDefinedProtocolGUI(std::string const & s, int j)
-{
-        userDefinedProtocolNameLineEdit->setText(s.c_str());
-        userDefinedProtocolTypeComboBox->setCurrentIndex(pdb.lookup(s).getTypes()[j] == IPPROTO_TCP ? 0 : 1);
-        userDefinedProtocolPortStartSpinBox->setValue(pdb.lookup(s).getStartPorts()[j]);
-        userDefinedProtocolPortEndSpinBox->setValue(pdb.lookup(s).getEndPorts()[j]);
-        userDefinedProtocolBidirectionalCheckBox->setEnabled(pdb.lookup(s).getTypes()[j]==IPPROTO_UDP);
-        userDefinedProtocolBidirectionalCheckBox->setChecked(pdb.lookup(s).getBidirectionals()[j]);
-}
 
 void GuardPuppyDialog_w::createUdpTableWidget()
 {
-    userDefinedProtocolTreeWidget->clear();
+    QStandardItemModel * model = dynamic_cast<QStandardItemModel*>(const_cast<QAbstractItemModel *>(userDefinedProtocolTreeView->model()));
+    model->clear();
     QStringList s("Protocol");
     s << "Type";
     s << "Range";
-    userDefinedProtocolTreeWidget->setHeaderLabels(s);
-    userDefinedProtocolTreeWidget->setHeaderHidden(false);
-    AddUDPToTable_ audptt(userDefinedProtocolTreeWidget);
-    pdb.ApplyToDB(audptt);
+    s << "Bidirectional";
+    model->setHorizontalHeaderLabels(s);
+    userDefinedProtocolTreeView->setHeaderHidden(false);
+    AddUDPToTable_ audptt(model);
+    firewall.ApplyToDB(audptt);
 }
 
 void GuardPuppyDialog_w::setAdvancedPageEnabled(bool enabled)
@@ -614,19 +628,8 @@ void GuardPuppyDialog_w::setAdvancedPageEnabled(bool enabled)
     localPortRangeLowSpinBox->setEnabled(enabled);
     localPortRangeHighSpinBox->setEnabled(enabled);
 
-    //std::vector< UserDefinedProtocol > const & udp = firewall.getUserDefinedProtocols();
-    numberOfUDP_ count;
-    pdb.ApplyToDB(count);
-    bool gotudps = count.value();///*firewall.numberOfUserDefinedProtocols() >*/ 1 ;
-    userDefinedProtocolTreeWidget->setEnabled(enabled);
-    userDefinedProtocolNameLineEdit->setEnabled(enabled && gotudps);
+    userDefinedProtocolTreeView->setEnabled(enabled);
     newUserDefinedProtocolPushButton->setEnabled(enabled);
-    deleteUserDefinedProtocolPushButton->setEnabled(enabled && gotudps);
-    userDefinedProtocolTypeComboBox->setEnabled(enabled && gotudps);
-    userDefinedProtocolPortStartSpinBox->setEnabled(enabled && gotudps);
-    userDefinedProtocolPortEndSpinBox->setEnabled(enabled && gotudps);
-
-    userDefinedProtocolBidirectionalCheckBox->setEnabled(false);
 
     enableDhcpCheckBox->setEnabled( enabled );
     dhcpInterfaceNameLineEdit->setEnabled( enabled && firewall.isDHCPcEnabled() );
@@ -636,10 +639,6 @@ void GuardPuppyDialog_w::setAdvancedPageEnabled(bool enabled)
 
     allowTcpTimeStampsCheckBox->setEnabled(enabled);
 
-}
-
-void GuardPuppyDialog_w::buildConnectionGUI()
-{
 }
 
 void GuardPuppyDialog_w::on_logDroppedPacketsCheckBox_stateChanged( int state )
@@ -692,18 +691,6 @@ void GuardPuppyDialog_w::on_enableDhcpdCheckBox_stateChanged( int state )
 {
     firewall.setDHCPdEnabled( state );
 }
-
-void GuardPuppyDialog_w::on_userDefinedProtocolBidirectionalCheckBox_stateChanged( int state )
-{
-    int i; int j;
-    CurrentlySelectedUDPIndexes(i,j);
-    if( i>=0 && j>=0 )
-    {
-        changeProtocolBi_ cpb((bool)state, j);
-        pdb.ApplyToNthInClass(cpb, i, "User Defined");
-    }
-}
-
 void GuardPuppyDialog_w::on_logRateSpinBox_valueChanged( int value )
 {
     firewall.setLogRate( value );
@@ -728,62 +715,5 @@ void GuardPuppyDialog_w::on_localPortRangeHighSpinBox_valueChanged( int value )
 void GuardPuppyDialog_w::on_logLevelComboBox_currentIndexChanged(int value)
 {
     firewall.setLogLevel(value);
-}
-
-void GuardPuppyDialog_w::on_userDefinedProtocolTypeComboBox_currentIndexChanged(int value)
-{
-    int i; int j;
-    CurrentlySelectedUDPIndexes(i,j);
-    if( i>=0 && j>=0 )
-    {
-        std::cerr << i << " " << j <<std::endl;
-        changeProtocolType_ cpn(value == 0?IPPROTO_TCP:IPPROTO_UDP, j);
-        pdb.ApplyToNthInClass(cpn, i, "User Defined");
-        userDefinedProtocolTreeWidget->topLevelItem(i)->child(j)->setText(1, value == 0?"TCP":"UDP");
-        userDefinedProtocolBidirectionalCheckBox->setEnabled(value);
-    }
-}
-void GuardPuppyDialog_w::on_userDefinedProtocolNameLineEdit_textEdited(QString const & text)
-{
-    int i; int j;
-    CurrentlySelectedUDPIndexes(i,j);
-    if( i>=0 && j>=0 )
-    {
-        std::string s = text.toStdString();
-        changeProtocolName_ cpn(s);
-        pdb.ApplyToNthInClass(cpn, i, "User Defined");
-        QTreeWidgetItem* t = userDefinedProtocolTreeWidget->topLevelItem(i);
-        t->setText(0, s.c_str());//change the root of the protocol
-        for(int c(0); c < t->childCount(); c++)
-        {//and for all the children
-            t->child(c)->setText(0, s.c_str());
-        }
-    }
-}
-void GuardPuppyDialog_w::on_userDefinedProtocolPortStartSpinBox_editingFinished()
-{
-    int i; int j;
-    int value = userDefinedProtocolPortStartSpinBox->value();
-    CurrentlySelectedUDPIndexes(i,j);
-    if( i>=0 && j>=0 )
-    {
-        changeProtocolPort_ cpn(value, j, userDefinedProtocolTreeWidget->topLevelItem(i));
-        pdb.ApplyToNthInClass(cpn, i, "User Defined");
-        if(cpn.pChange())
-            userDefinedProtocolPortEndSpinBox->setValue(value);
-    }
-}
-void GuardPuppyDialog_w::on_userDefinedProtocolPortEndSpinBox_editingFinished()
-{
-    int i; int j;
-    int value = userDefinedProtocolPortEndSpinBox->value();
-    CurrentlySelectedUDPIndexes(i,j);
-    if( i>=0 && j>=0 )
-    {
-        changeProtocolPort_ cpn(value, j, userDefinedProtocolTreeWidget->topLevelItem(i), false);
-        pdb.ApplyToNthInClass(cpn, i, "User Defined");
-        if(cpn.pChange())
-            userDefinedProtocolPortStartSpinBox->setValue(value);
-    }
 }
 

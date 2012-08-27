@@ -25,8 +25,8 @@
 #include "protocoldb.h"
 #include "zone.h"
 
-//#define SYSTEM_RC_FIREWALL "/etc/rc.firewall"
-#define SYSTEM_RC_FIREWALL2 "/etc/rc2.firewall"   //  This is temporary during development so that guardpuppy doesn't actually overwrite rc.firewall
+#define SYSTEM_RC_FIREWALL2 "/etc/rc.firewall"
+//#define SYSTEM_RC_FIREWALL2 "/etc/rc2.firewall"   //  This is temporary during development so that guardpuppy doesn't actually overwrite rc.firewall
 
 //! \todo These are values of logging.  However, there is a whole matching mechanism
 //!       in iptables for logging filters and rules that could be implemented.
@@ -1785,7 +1785,7 @@ public:
                                         }
                                         catch ( ... )
                                         {
-                                            std::cout << "Shouldn't see this anymore..." << std::endl;
+                                            //std::cout << "Shouldn't see this anymore..." << std::endl;
                                         }
                                     }
                                 }
@@ -1805,8 +1805,8 @@ public:
                                                 fromZone->setProtocolState( *toZone, pe, Zone::REJECT );
                                             }
                                             catch ( ... )
-                                            {
-                                                std::cout << "Shouldn't see this anymore..." << std::endl;
+                                            {//this can happen when importing old version files
+                                                //std::cout << "Shouldn't see this anymore..." << std::endl;
                                             }
                                         }
                                     }
@@ -1944,9 +1944,17 @@ public:
     {
         return pdb.lookup(s).getName();
     }
+    void setName(std::string current, std::string next)
+    {
+        pdb.lookup(current).setName(next);
+    }
     std::vector<uchar> getTypes(std::string s) const
     {
         return pdb.lookup(s).getTypes();
+    }
+    void setType(std::string s, uchar type, int j)
+    {
+            pdb.lookup(s).setType(type, j);
     }
 
     std::vector<uint> getStartPorts(std::string s) const
