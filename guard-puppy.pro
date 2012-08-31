@@ -34,4 +34,6 @@ SOURCES += src/dialog_w.cpp
 SOURCES += src/guardPuppy.cpp
 SOURCES += src/zoneImportStrategy.cpp
 SOURCES += src/userDefinedProtocolTreeHelpers.cpp
+SOURCES += src/protocoldb.cpp
+SOURCES += src/firewallManager.cpp
 

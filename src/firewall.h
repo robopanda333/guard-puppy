@@ -26,7 +26,6 @@
 #include "zone.h"
 
 #define SYSTEM_RC_FIREWALL2 "/etc/rc.firewall"
-//#define SYSTEM_RC_FIREWALL2 "/etc/rc2.firewall"   //  This is temporary during development so that guardpuppy doesn't actually overwrite rc.firewall
 
 //! \todo These are values of logging.  However, there is a whole matching mechanism
 //!       in iptables for logging filters and rules that could be implemented.
@@ -44,7 +43,8 @@ enum { LOG_ALL_OR_UNMATCHED, LOG_FIRST, LOG_ALL_KNOWN_MATCHED };
 
 class GuardPuppyFireWall
 {
-    ProtocolDB & pdb;                // The protocol database we are using.
+    ProtocolDB & pdb;               // The protocol database we are using.
+
     bool waspreviousfirewall;       // True if there was a previous Guarddog firewall active/available
                                     // When GuardPuppy exists, know whether to restore rc.firewall from rc.firewall~ or not
                                     // at program startup.
@@ -201,7 +201,6 @@ public:
     **  \todo My guess is that places that use this could be rewritten more intelligently and this function could be removed
     */
     size_t zoneCount() const { return zones.size(); }
-
 
     /*!
     **  \brief  Add a new zone to the firewall
@@ -571,9 +570,9 @@ private:
                 o<<"# ID="<<("0"/*currentudp.getID()*/)<<"\n";
                 o<<"# NAME="<<(i.getName())<<"\n";
 
-                std::vector<uchar> types = i.getTypes();
-                std::vector<uint> start = i.getStartPorts();
-                std::vector<uint> end = i.getEndPorts();
+                std::vector<uint8_t> types = i.getTypes();
+                std::vector<uint16_t> start = i.getStartPorts();
+                std::vector<uint16_t> end = i.getEndPorts();
                 std::vector<bool> bi = i.getBidirectionals();
                 for(uint j(0); j < types.size(); j++)
                 {
@@ -590,7 +589,7 @@ private:
     */
     void writeIPTablesFirewall(std::ostream &stream)
     {
-        PortRangeInfo localPRI;
+        PortRangeInfo localPRI; //holds the dynamic range. should be held elsewhere (in the firewall, or firewall manager)
         const char *rateunits[] = {"second", "minute", "hour", "day" };
 
         stream<<"###############################\n"
@@ -1181,8 +1180,10 @@ private:
 
     }
 
-    void expandIPTablesFilterRule( std::ostream & stream, std::string const & fromzone, PortRangeInfo * fromzonePRI, std::string const & tozone, PortRangeInfo *tozonePRI,
-            ProtocolNetUse const & netuse, bool permit = true, bool log = false)
+    void expandIPTablesFilterRule( std::ostream & stream, std::string const & fromzone,
+            ProtocolEntry::PortRange * fromzonePRI, std::string const & tozone, 
+            ProtocolEntry::PortRange *tozonePRI, ProtocolEntry::ProtocolNet const & netuse,
+            bool permit = true, bool log = false)
     {
         const char *icmpname;
         ProtocolNetUseDetail const & source = netuse.sourcedetail;
@@ -1778,15 +1779,7 @@ public:
                                     }
                                     else
                                     {
-                                        try
-                                        {
-                                            ProtocolEntry & pe = pdb.lookup(s.substr(11));
-                                            fromZone->setProtocolState( *toZone, pe, Zone::PERMIT );
-                                        }
-                                        catch ( ... )
-                                        {
-                                            //std::cout << "Shouldn't see this anymore..." << std::endl;
-                                        }
+                                        fromZone->setProtocolState(*toZone, s.substr(11), Zone::PERMIT);
                                     }
                                 }
                                 else
@@ -1799,15 +1792,7 @@ public:
                                         }
                                         else
                                         {
-                                            try
-                                            {
-                                                ProtocolEntry & pe = pdb.lookup(s.substr(9));
-                                                fromZone->setProtocolState( *toZone, pe, Zone::REJECT );
-                                            }
-                                            catch ( ... )
-                                            {//this can happen when importing old version files
-                                                //std::cout << "Shouldn't see this anymore..." << std::endl;
-                                            }
+                                            fromZone->setProtocolState( *toZone, s.substr(9), Zone::REJECT );
                                         }
                                     }
                                     else
@@ -1938,59 +1923,5 @@ private:
         int rv = system( command.c_str() );
         if ( rv == -1 ) throw std::string( "system command returned error" );
     }
-/* These functions are already dead
-public:
-    std::string getName(std::string s) const
-    {
-        return pdb.lookup(s).getName();
-    }
-    void setName(std::string current, std::string next)
-    {
-        pdb.lookup(current).setName(next);
-    }
-    std::vector<uchar> getTypes(std::string s) const
-    {
-        return pdb.lookup(s).getTypes();
-    }
-    void setType(std::string s, uchar type, int j)
-    {
-            pdb.lookup(s).setType(type, j);
-    }
-
-    std::vector<uint> getStartPorts(std::string s) const
-    {
-        return pdb.lookup(s).getStartPorts();
-    }
-    void setStartPort(std::string s, uint i, int j)
-    {
-        pdb.lookup(s).setStartPort(i, j);
-    }
-    std::vector<uint> getEndPorts(std::string s) const
-    {
-        return pdb.lookup(s).getEndPorts();
-    }
-    void setEndPort(std::string s, uint i, int j)
-    {
-        pdb.lookup(s).setEndPort(i, j);
-    }
-    std::vector<bool> getBidirectionals(std::string s) const
-    {
-        return pdb.lookup(s).getBidirectionals();
-    }
-    void setBidirectional(std::string s, bool on, int j)
-    {
-        pdb.lookup(s).setBidirectional(on, j);
-    }
-    template <class T>
-    void ApplyToDB(T & func)
-    {
-        pdb.ApplyToDB(func);
-    }
-    template<class T>
-    void ApplyToNthInClass(T & func, int i, std::string c)
-    {
-        pdb.ApplyToNthInClass(func, i, c);
-    }
-*/
 };
 

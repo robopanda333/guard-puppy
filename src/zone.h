@@ -135,20 +135,9 @@ public:
         protocols[ zoneTo ][ protocol ] = state;
     }
 
-    void setProtocolState( Zone const & toZone, ProtocolEntry const & proto, Zone::ProtocolState state)
-    {
-        protocols[ toZone.name ][ proto.getName() ] = state;
-    }
     bool editable() const
     {
-        switch ( zonetype )
-        {
-            case LocalZone:
-            case InternetZone:
-                return false;
-            default:
-                return true;
-        }
+        return !(isLocal()||isInternet());
     }
 
     ProtocolState getProtocolState( std::string const & toZone, std::string const & protocolName ) const
@@ -172,23 +161,17 @@ public:
 
         std::map< std::string, map_t >::const_iterator zit;
         zit = protocols.find( toZone );
-        if ( zit != protocols.end() )
-        {
+        if( zit != protocols.end() )
             BOOST_FOREACH( map_t::value_type const & mapEntry, zit->second )
-            {
-                if ( mapEntry.second == state )
+                if(mapEntry.second == state )
                     protocolsNames.push_back( mapEntry.first );
-            }
-        }
         return protocolsNames;
     }
 
     void denyAllProtocols( Zone const & toZone )
     {
         if ( protocols.find( toZone.name ) != protocols.end() )
-        {
             protocols[ toZone.name ].clear();
-        }
     }
 
     bool isLocal() const
@@ -204,48 +187,32 @@ public:
     void connect( std::string const & zoneTo )
     {
         if ( !isConnectedTo( zoneTo ) )
-        {
             connections.push_back( zoneTo );
-        }
     }
+
     void disconnect( std::string const & zoneTo )
     {
         if(!isConnectionMutable(zoneTo))
         {
             std::vector< std::string >::iterator i = std::find( connections.begin(), connections.end(), zoneTo );
             if ( i != connections.end() )
-            {
                 connections.erase( i );
-            }
         }
     }
+
     bool isConnectedTo( std::string const & zoneName ) const
     {
         return std::find( connections.begin(), connections.end(), zoneName ) != connections.end();
     }
+
     bool isConnectionMutable(std::string const & toZone)
     {
-        if(isLocal() && (toZone=="Internet"))
-        {
-            return false;
-        }
-        if(isInternet() && (toZone=="Local"))
-        {
-            return false;
-        }
-        return true;
+        return !((isLocal() && (toZone=="Internet")) || (isInternet() && (toZone=="Local")));
     }
+
     bool isConnectionMutable(Zone const & toZone)
     {
-        if(isLocal() && toZone.isInternet())
-        {
-            return false;
-        }
-        if(isInternet() && toZone.isLocal())
-        {
-            return false;
-        }
-        return true;
+        return !((isLocal() && toZone.isInternet())||(isInternet() && toZone.isLocal()));
     }
 
     void ZoneImport(std::string const & filename)
