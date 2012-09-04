@@ -350,9 +350,15 @@ public:
     */
     void apply()
     {
-        boost::filesystem::path tmpFile = boost::filesystem::unique_path();
         std::string tmp( "/tmp/" );
+#if BOOST_FILESYSTEM_VERSION < 3
+	char buffer [L_tmpnam];
+  	tmpnam (buffer);
+	tmp += buffer;
+#else
+	boost::filesystem::path tmpFile = boost::filesystem::unique_path();
         tmp += tmpFile.string();
+#endif
         save( tmp );
         std::string cmd = "chmod 0700 " + tmp;
         system( cmd.c_str() );

@@ -1,6 +1,7 @@
 #pragma once
 #include <iostream>
 #include <string>
+#include <bitset>
 #include <boost/regex.hpp>
 #include <boost/foreach.hpp>
 #include <boost/lexical_cast.hpp>
