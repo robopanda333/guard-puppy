@@ -36,4 +36,5 @@ SOURCES += src/zoneImportStrategy.cpp
 SOURCES += src/userDefinedProtocolTreeHelpers.cpp
 SOURCES += src/protocoldb.cpp
 SOURCES += src/firewallManager.cpp
+SOURCES += src/zone.cpp
 

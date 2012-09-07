@@ -26,7 +26,7 @@ class FirewallManager
     ProtocolDB pdb;
 
     //!The Zone Database
-    //ZoneDB & zdb; //Add this class into here when it is ready
+    ZoneDB & zdb; //Add this class into here when it is ready
 
     //!The list of firewalls
     //std::vector<Firewall> fw;

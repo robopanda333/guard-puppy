@@ -9,15 +9,16 @@
 #include <boost/spirit/home/phoenix/operator.hpp>
 #include <boost/spirit/home/phoenix/bind.hpp>
 
-#include "protocoldb.h"
-#include "iprange.h"
-#include "zoneImportStrategy.h"
 
 #include <iostream>
 #include <fstream>
 #include <boost/regex.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/numeric/conversion/cast.hpp>
+
+#include "protocoldb.h"
+#include "iprange.h"
+#include "zoneImportStrategy.h"
 
 /*
 **  Each zone maintains a list of IPaddress that define this zone and
@@ -36,193 +37,127 @@ private:
     std::vector<IPRange>       memberMachine;
     std::map< std::string, std::map< std::string, ProtocolState > > protocols;  // [toZone][protocolName] = state
     std::vector< std::string > connections;          // List of zone names this zone is connected to, in theory, these are keys of protocols
-                                                     // Though it's possible that zones are connected in name before any protocols are associated
-                                                     // with them.
-                                                     //! \todo Might be something to examine in the future.
-    //  id, nextId are used to assign integers to zones.  Probably not needed
-    //  as zone name could be used instead.  Too early to remove though.
-    unsigned int               id;
-    static unsigned int        nextId;
+                                                     // Though it's possible that zones are connected in name before any protocols are associated with them
+public:
+    Zone( Zone const & rhs ) { *this = rhs; }
+    Zone( ZoneType zt ):zonetype(zt) {}
+    Zone( std::string const & n, ZoneType const zt = UserZone ):name(n), zonetype(zt) {}
+    ~Zone() {}
+    Zone & operator=( Zone const & rhs );
+
+    void setComment( std::string const & c )    { comment = c; }
+    void setName( std::string const & n )       { name = n; }
+    void setProtocolState( std::string const & zoneTo, std::string const & protocol, Zone::ProtocolState state) { protocols[ zoneTo ][ protocol ] = state; }
+
+    std::string const & getComment() const      { return comment; }
+    std::string const & getName() const         { return name; }
+    ProtocolState getProtocolState( std::string const & toZone, std::string const & protocolName ) const;
+    std::vector< std::string > getConnectedZoneProtocols( std::string const & toZone, ProtocolState state ) const;
+    std::vector<IPRange> const & getMemberMachineList() const { return memberMachine; }
+
+    void addMemberMachine( IPRange const & ip ) { memberMachine.push_back( ip ); }
+    void renameMachine( std::string const & oldMachineName, std::string const & newMachineName );
+    void deleteMemberMachine( IPRange const & ip );
+    void connect( std::string const & zoneTo );
+    void disconnect( std::string const & zoneTo );
+    void ZoneImport(std::string const & filename);
+
+    bool editable() const   { return !(isLocal()||isInternet()); }
+    bool isLocal() const    { return zonetype==LocalZone; }
+    bool isInternet() const { return zonetype==InternetZone; }
+    bool isConnectedTo( std::string const & zoneName ) const;
+    bool isConnectionMutable(std::string const & toZone) const;
+    bool operator!=( Zone const & rhs ) const { return name != rhs.name; }
+};
+
+class ZoneDB
+{
+std::vector< Zone > zdb;
 public:
 
-    Zone( Zone const & rhs )
-    {
-        *this = rhs;
-    }
+    /*!
+    **  \brief add an ipAddress to a zone
+    */
+    void addNewMachine( std::string const & zoneName, std::string const & ipAddress );
 
-    Zone( ZoneType zt )
-    {
-        zonetype = zt;
-        id = nextId++;
-    }
+    /*!
+    **  \brief  Delete an ipaddress from a zone
+    */
+    void deleteMachine( std::string const & zoneName, std::string const & ipAddress );
 
-    Zone( std::string const & zoneName, ZoneType zt = UserZone )
-     : name( zoneName ), zonetype( zt )
-    {
-        id = nextId++;
-    }
+    /*!
+    **  \brief Change the name associated with an ipaddress in a given zone
+    */
+    void setNewMachineName( std::string const & zoneName, std::string const & oldMachineName, std::string const & newMachineName );
 
-    ~Zone()
-    {
-    }
+    /*!
+    **  \brief For a zoneFrom->zoneTo protocol, set the state to PERMIT, DENY, or REJECT
+    */
+    void setProtocolState( std::string const & zoneFrom, std::string const & zoneTo, std::string const & protocolName, Zone::ProtocolState state );
 
-    Zone & operator=( Zone const & rhs )
-    {
-        name          = rhs.name;
-        comment       = rhs.comment;
-        memberMachine = rhs.memberMachine;
-        zonetype      = rhs.zonetype;
-        protocols     = rhs.protocols;
-        id            = rhs.id;
+    /*!
+    **  \brief  Get the protocol state for a given zoneFrom->zoneTo protocol
+    */
+    Zone::ProtocolState getProtocolState( std::string const & zoneFrom, std::string const & zoneTo, std::string const & protocolName );
 
-        connections   = rhs.connections;
-        return *this;
-    }
+    /*!
+    **  \brief Get a list of all the zones
+    */
+    std::vector< std::string > getZoneList() const;
 
-    unsigned int getId() const { return id; }
+    /*!
+    **  \brief  Return number of zones
+    **
+    **  \todo My guess is that places that use this could be rewritten more intelligently and this function could be removed
+    */
+    size_t zoneCount() const { return zdb.size(); }
 
-    void renameMachine( std::string const & oldMachineName, std::string const & newMachineName )
-    {
-        std::vector< IPRange >::iterator i = std::find_if( memberMachine.begin(), memberMachine.end(), boost::phoenix::bind( &IPRange::getAddress, boost::phoenix::arg_names::arg1) == oldMachineName );
+    /*!
+    **  \brief  Add a new zone to the firewall
+    */
+    void addZone( std::string const & zoneName ) { zdb.push_back( Zone( zoneName ) );}
 
-        if ( i != memberMachine.end() )
-            i->setAddress( newMachineName );
-    }
+    /*!
+    **  \brief  Delete a named zone from the firewall
+    */
+    void deleteZone( std::string const & zoneName );
 
-    void setComment( std::string const & c )
-    {
-        comment = c;
-    }
+    /*!
+    **  \brief get a constant reference to a zone given a name
+    */
+    Zone const & getZone( std::string const & name ) const;
 
-    std::string const & getComment() const
-    {
-        return comment;
-    }
+    /*!
+    **  \brief get a reference to a zone given a name
+    */
+    Zone & getZone( std::string const & name );
 
-    void setName( std::string const & n )
-    {
-        name = n;
-    }
-    std::string const & getName() const
-    {
-        return name;
-    }
+    /*!
+    **  \brief Get a list of zones connected to this one
+    */
+    std::vector< std::string > getConnectedZones( std::string const & zoneFrom ) const;
 
-    std::vector<IPRange> const & getMemberMachineList() const
-    {
-        return memberMachine;
-    }
+    /*!
+    **  \brief  update the connection state between zoneFrom and zoneTo
+    */
+    void updateZoneConnection( std::string const & zoneFrom, std::string const & zoneTo, bool connected );
 
-    void addMemberMachine( IPRange const & ip )
-    {
-        memberMachine.push_back( ip );
-    }
+    /*!
+    **  \brief get a list of protocols that between zoneFrom->zoneTo
+    */
+    std::vector< std::string > getConnectedZoneProtocols( std::string const & zoneFrom, std::string const & zoneTo, Zone::ProtocolState state ) const;
 
-    void deleteMemberMachine( IPRange const & ip )
-    {
-        std::vector<IPRange>::iterator i = std::find( memberMachine.begin(), memberMachine.end(), ip );
-        if ( i != memberMachine.end() )
-            memberMachine.erase( i );
-    }
+    /*!
+    **  \brief boolean whether zoneFrom is connected to zoneTo
+    */
+    bool areZonesConnected( std::string const & zoneFrom, std::string const & zoneTo ) const;
 
-    bool operator!=( Zone const & rhs ) const
-    {
-        return name != rhs.name;
-    }
-
-    void setProtocolState( std::string const & zoneTo, std::string const & protocol, Zone::ProtocolState state)
-    {
-        protocols[ zoneTo ][ protocol ] = state;
-    }
-
-    bool editable() const
-    {
-        return !(isLocal()||isInternet());
-    }
-
-    ProtocolState getProtocolState( std::string const & toZone, std::string const & protocolName ) const
-    {
-        std::map< std::string, std::map< std::string, ProtocolState > >::const_iterator zit;
-        zit = protocols.find( toZone );
-        if ( zit == protocols.end() )
-            return DENY;
-        std::map< std::string, ProtocolState >::const_iterator pit;
-        pit = zit->second.find( protocolName );
-        if ( pit == zit->second.end() )
-            return DENY;
-        return pit->second;
-
-    }
-
-    std::vector< std::string > getConnectedZoneProtocols( std::string const & toZone, ProtocolState state ) const
-    {
-        std::vector< std::string > protocolsNames;
-        typedef std::map< std::string, ProtocolState > map_t;
-
-        std::map< std::string, map_t >::const_iterator zit;
-        zit = protocols.find( toZone );
-        if( zit != protocols.end() )
-            BOOST_FOREACH( map_t::value_type const & mapEntry, zit->second )
-                if(mapEntry.second == state )
-                    protocolsNames.push_back( mapEntry.first );
-        return protocolsNames;
-    }
-
-    void denyAllProtocols( Zone const & toZone )
-    {
-        if ( protocols.find( toZone.name ) != protocols.end() )
-            protocols[ toZone.name ].clear();
-    }
-
-    bool isLocal() const
-    {
-        return zonetype==LocalZone;
-    }
-
-    bool isInternet() const
-    {
-        return zonetype==InternetZone;
-    }
-
-    void connect( std::string const & zoneTo )
-    {
-        if ( !isConnectedTo( zoneTo ) )
-            connections.push_back( zoneTo );
-    }
-
-    void disconnect( std::string const & zoneTo )
-    {
-        if(!isConnectionMutable(zoneTo))
-        {
-            std::vector< std::string >::iterator i = std::find( connections.begin(), connections.end(), zoneTo );
-            if ( i != connections.end() )
-                connections.erase( i );
-        }
-    }
-
-    bool isConnectedTo( std::string const & zoneName ) const
-    {
-        return std::find( connections.begin(), connections.end(), zoneName ) != connections.end();
-    }
-
-    bool isConnectionMutable(std::string const & toZone)
-    {
-        return !((isLocal() && (toZone=="Internet")) || (isInternet() && (toZone=="Local")));
-    }
-
-    bool isConnectionMutable(Zone const & toZone)
-    {
-        return !((isLocal() && toZone.isInternet())||(isInternet() && toZone.isLocal()));
-    }
-
-    void ZoneImport(std::string const & filename)
-    {
-        std::ifstream in(filename.c_str());
-        if( in.is_open() )
-        {
-            ZoneImportABCstrategy * strategy = new ZoneImportP2P;
-            strategy->Import(in, *this);
-        }
-    }
+    /*!
+    **  \brief  Rename a zone name
+    **
+    */
+    void zoneRename( std::string const & oldZoneName, std::string const & newZoneName );
 };
+
+
 

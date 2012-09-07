@@ -43,7 +43,7 @@ enum { LOG_ALL_OR_UNMATCHED, LOG_FIRST, LOG_ALL_KNOWN_MATCHED };
 
 class GuardPuppyFireWall
 {
-    ProtocolDB & pdb;               // The protocol database we are using.
+    FirewallManager const * fwm;    //<!Needs to be able to read from the firewall
 
     bool waspreviousfirewall;       // True if there was a previous Guarddog firewall active/available
                                     // When GuardPuppy exists, know whether to restore rc.firewall from rc.firewall~ or not
@@ -54,13 +54,12 @@ class GuardPuppyFireWall
                                     // to be undone.
 
     bool superUserMode;             // True if GuardPuppy is running as root
-
     enum LogRateUnit {SECOND=0, MINUTE, HOUR, DAY};
 
-    std::vector< Zone > zones;
-
+//! these are needed for dynamic port ranges.
     uint localPortRangeStart;
     uint localPortRangeEnd;
+
     bool disabled;
     bool routing;
 
@@ -84,8 +83,8 @@ class GuardPuppyFireWall
     std::string dhcpdinterfacename;
     bool allowtcptimestamps;
 
-public:
     std::string description;
+public:
 
 
     /*!
@@ -139,162 +138,6 @@ public:
     void setAllowTCPTimestamps(bool on) { allowtcptimestamps = on; }
     bool isAllowTCPTimestamps() { return allowtcptimestamps; }
 
-    /*!
-    **  \brief add an ipAddress to a zone
-    */
-    void addNewMachine( std::string const & zoneName, std::string const & ipAddress )
-    {
-        Zone & zone = getZone( zoneName );
-        zone.addMemberMachine( IPRange( ipAddress ) );
-    }
-
-    /*!
-    **  \brief  Delete an ipaddress from a zone
-    */
-    void deleteMachine( std::string const & zoneName, std::string const & ipAddress )
-    {
-        Zone & zone = getZone( zoneName );
-        zone.deleteMemberMachine( IPRange( ipAddress ) );
-    }
-
-    /*!
-    **  \brief Change the name associated with an ipaddress in a given zone
-    */
-    void setNewMachineName( std::string const & zoneName, std::string const & oldMachineName, std::string const & newMachineName )
-    {
-        Zone & zone = getZone( zoneName );
-        zone.renameMachine( oldMachineName, newMachineName );
-    }
-
-    /*!
-    **  \brief For a zoneFrom->zoneTo protocol, set the state to PERMIT, DENY, or REJECT
-    */
-    void setProtocolState( std::string const & zoneFrom, std::string const & zoneTo, std::string const & protocolName, Zone::ProtocolState state )
-    {
-        Zone & zone = getZone( zoneFrom );
-        return zone.setProtocolState( zoneTo, protocolName, state );
-    }
-
-    /*!
-    **  \brief  Get the protocol state for a given zoneFrom->zoneTo protocol
-    */
-    Zone::ProtocolState getProtocolState( std::string const & zoneFrom, std::string const & zoneTo, std::string const & protocolName )
-    {
-        Zone & zone = getZone( zoneFrom );
-        return zone.getProtocolState( zoneTo, protocolName );
-    }
-
-    /*!
-    **  \brief Get a list of all the zones
-    */
-    std::vector< std::string > getZoneList() const
-    {
-        std::vector< std::string > names;
-        BOOST_FOREACH( Zone const & z, zones )
-            names.push_back( z.getName() );
-        return names;
-    }
-
-    /*!
-    **  \brief  Return number of zones
-    **
-    **  \todo My guess is that places that use this could be rewritten more intelligently and this function could be removed
-    */
-    size_t zoneCount() const { return zones.size(); }
-
-    /*!
-    **  \brief  Add a new zone to the firewall
-    */
-    void addZone( std::string const & zoneName ) { zones.push_back( Zone( zoneName ) );}
-
-    /*!
-    **  \brief  Delete a named zone from the firewall
-    */
-    void deleteZone( std::string const & zoneName )
-    {
-        std::vector< Zone >::iterator zit = std::find_if( zones.begin(), zones.end(), boost::phoenix::bind( &Zone::getName, boost::phoenix::arg_names::arg1) == zoneName );
-        if ( zit == zones.end() )
-            throw std::string("Zone not found 1");
-        zones.erase( zit );
-    }
-
-    /*!
-    **  \brief get a constant reference to a zone given a name
-    */
-    Zone const & getZone( std::string const & name ) const
-    {
-        std::vector< Zone >::const_iterator zit = std::find_if( zones.begin(), zones.end(), boost::phoenix::bind( &Zone::getName, boost::phoenix::arg_names::arg1) == name );
-        if ( zit == zones.end() )
-            throw std::string("Zone not found 2");
-        return *zit;
-    }
-    /*!
-    **  \brief get a reference to a zone given a name
-    */
-    Zone & getZone( std::string const & name )
-    {
-        std::vector< Zone >::iterator zit = std::find_if( zones.begin(), zones.end(), boost::phoenix::bind( &Zone::getName, boost::phoenix::arg_names::arg1) == name );
-        if ( zit == zones.end() )
-            throw std::string("Zone not found 3");
-        return *zit;
-    }
-
-    /*!
-    **  \brief Get a list of zones connected to this one
-    */
-    std::vector< std::string > getConnectedZones( std::string const & zoneFrom ) const
-    {
-        std::vector< std::string > connectedZones;
-        BOOST_FOREACH( std::string const & zoneTo, getZoneList() )
-            if ( areZonesConnected( zoneFrom, zoneTo ) )
-                connectedZones.push_back( zoneTo );
-        return connectedZones;
-    }
-
-    /*!
-    **  \brief  update the connection state between zoneFrom and zoneTo
-    */
-    void updateZoneConnection( std::string const & zoneFrom, std::string const & zoneTo, bool connected )
-    {
-        if ( connected )
-            getZone( zoneFrom ).connect( zoneTo );
-        else
-            getZone( zoneFrom ).disconnect( zoneTo );
-    }
-
-    /*!
-    **  \brief get a list of protocols that between zoneFrom->zoneTo
-    */
-    std::vector< std::string > getConnectedZoneProtocols( std::string const & zoneFrom, std::string const & zoneTo, Zone::ProtocolState state ) const
-    {
-        return getZone( zoneFrom ).getConnectedZoneProtocols( zoneTo, state );
-    }
-
-    /*!
-    **  \brief boolean whether zoneFrom is connected to zoneTo
-    */
-    bool areZonesConnected( std::string const & zoneFrom, std::string const & zoneTo ) const
-    {
-        try
-        {
-            Zone const & zone = getZone( zoneFrom );
-            return zone.isConnectedTo( zoneTo );
-        }
-        catch (...)
-        {
-            return false;
-        }
-    }
-
-    /*!
-    **  \brief  Rename a zone name
-    **
-    */
-    void zoneRename( std::string const & oldZoneName, std::string const & newZoneName )
-    {
-        Zone & zone = getZone( oldZoneName );
-        zone.setName( newZoneName );
-    }
 
     /*!
     **
